@@ -1,0 +1,12 @@
+# The art is already unzipped into /art, so the zips are duplicates (and big).
+*.zip
+
+# Local tooling
+.vercel/
+__pycache__/
+*.pyc
+
+# OS clutter
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,7 @@
+# Files that are only for previewing on your own computer. Vercel doesn't need them.
+serve.py
+start.bat
+start.ps1
+*.zip
+art/_unused/
+README.md

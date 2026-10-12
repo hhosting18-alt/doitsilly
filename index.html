@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DOITSILLY · Creative studio and community, Bangalore</title>
+<meta name="description" content="A creative studio for brands done playing it safe, and a community for creatives. Pick a side. Based at 3rd Space, Indiranagar.">
+<link rel="icon" href="art/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body data-level="system">
+<a class="skip" href="#/list">Skip the map: see everything as a list</a>
+
+<!-- scenes -->
+<div id="space" class="scene" aria-label="Solar system"><div id="space-stage" class="stage"></div></div>
+<div id="world" class="scene" tabindex="0" aria-label="Map of DOITSILLY Island and Community Island. Drag or use arrow keys to look around."><div id="world-stage" class="stage"></div></div>
+<div id="labels" aria-label="Places on the map"></div>
+
+<!-- chrome -->
+<header class="chrome">
+  <a class="logo" href="#/system" aria-label="DOITSILLY, zoom out to the solar system"><img id="logo-img" alt="DO IT SILLY" width="64" height="64"></a>
+  <div class="top-right">
+    <a class="pill pink" href="#/studio/contact">Start a project</a>
+    <button id="menu-btn" class="pill" type="button" aria-expanded="false" aria-controls="menu">MENU <span aria-hidden="true">=</span></button>
+  </div>
+</header>
+<nav id="trail" class="pill trail" aria-label="Where you are"></nav>
+<p id="hint" class="pill hint" hidden><span></span></p>
+<button id="tour-start" class="pill tour-start" type="button" hidden>Take the tour</button>
+<div class="zoom"><button id="zoom-in" class="pill sq" type="button" aria-label="Zoom in">+</button><button id="zoom-out" class="pill sq" type="button" aria-label="Zoom out">–</button></div>
+
+<div id="tour" class="tour" role="dialog" aria-label="Studio tour" hidden>
+  <span class="tour-n"></span><p></p>
+  <div class="row"><button id="tour-prev" class="pill" type="button">Previous</button><button id="tour-next" class="pill pink" type="button">Next stop</button><button id="tour-end" class="pill" type="button">End tour</button></div>
+</div>
+
+<div id="pop" class="pop" role="dialog" aria-label="Place info" hidden></div>
+<div id="say" class="say" role="status" aria-live="polite" hidden></div>
+<p id="hi" class="pill hi" hidden></p>
+
+<!-- place panel -->
+<aside id="panel" class="panel" aria-labelledby="panel-title" hidden>
+  <div class="panel-head"><span id="panel-kick"></span><button id="panel-close" class="pill" type="button">Back to the map</button></div>
+  <div id="panel-body" class="panel-body"></div>
+</aside>
+
+<!-- menu -->
+<div id="menu" class="menu" hidden>
+  <div class="menu-inner">
+    <p class="menu-lead">Brands, built silly. Creatives, gathered. Messy ideas welcome.</p>
+    <div class="menu-grid">
+      <section><h2>DOITSILLY Island</h2><ul id="menu-studio"></ul></section>
+      <section><h2>Community Island</h2><ul><li><a href="#/community">Island map<small>3rd Space</small></a></li><li><span class="soon">Places and pages land with the community content.</span></li></ul></section>
+      <section><h2>Elsewhere</h2><ul id="menu-else"></ul></section>
+    </div>
+    <footer class="menu-foot"><p class="signoff">Until you DO IT SILLY.</p><p>3rd Space, [STREET ADDRESS], Indiranagar, Bangalore [PIN] · [EMAIL] · [WHATSAPP]</p><p>© 2026 DOITSILLY · Privacy · Terms · Cookies</p></footer>
+  </div>
+</div>
+
+<!-- list view -->
+<div id="list" class="sheet" hidden>
+  <div class="sheet-inner">
+    <a class="pill" href="#/studio">Back to the map</a>
+    <h1 tabindex="-1"></h1><p class="sub"></p>
+    <h2>The Studio</h2><ul id="list-studio"></ul>
+    <h2>3rd Space</h2><ul><li><a href="#/community">Community Island</a> <span>Content landing soon.</span></li></ul>
+  </div>
+</div>
+
+<div id="notfound" class="sheet" hidden>
+  <div class="sheet-inner"><h1 tabindex="-1"></h1><p></p><div class="row"><a class="pill pink" href="#/islands">Back to Silly Town</a><a class="pill" href="#/list">See everything in a list</a></div></div>
+</div>
+
+<div id="cookie" class="pill cookie" hidden><p></p><button id="cookie-ok" class="pill ink" type="button">Okay</button></div>
+
+<div id="loader" class="loader" hidden>
+  <div id="loader-art" class="loader-art" aria-hidden="true"></div>
+  <p id="loader-line" aria-live="polite"></p>
+  <div class="loader-track"><div id="loader-bar"></div></div>
+  <button id="skip" class="pill" type="button">Skip intro</button>
+</div>
+
+<script src="js/assets.js"></script>
+<script src="js/map-data.js"></script>
+<script src="js/config.js"></script>
+<script src="js/content.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
