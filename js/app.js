@@ -599,7 +599,7 @@
     $("#coast-old").innerHTML = `<defs><clipPath id="dis-art-clip" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="${d.clip}"/></clipPath></defs>
       <path class="c-halo" fill-rule="evenodd" d="${d.halo}"/><path class="c-foam" d="${d.foam}"/><path class="c-beach" fill-rule="evenodd" d="${d.beach}"/>`;
     $("#world-stage").classList.add("clipped");
-    setTimeout(() => bakeTiles(d.clip), 400);
+    setTimeout(() => bakeTiles(d.clip).catch(() => {}).finally(() => ISL._mapReady()), 100);
   }
   /* Clipping the island art with a live SVG clip-path forces the browser to redraw the whole map through that shape on
      every frame of a pan or zoom. Instead, each tile is clipped once, in the background, into a new image; after that the
@@ -607,7 +607,7 @@
   async function bakeTiles(clipD) {
     if (bakeTiles.started || !window.Path2D) return; bakeTiles.started = true;
     let clip; try { clip = new Path2D(clipD); } catch (e) { return; }
-    const idle = () => new Promise(r => window.requestIdleCallback ? requestIdleCallback(r, { timeout: 500 }) : setTimeout(r, 40));
+    const idle = () => new Promise(r => window.requestIdleCallback ? requestIdleCallback(r, { timeout: 80 }) : setTimeout(r, 0));
     for (const im of $$("#world-stage img.tile")) {
       await idle();
       try {
@@ -621,6 +621,7 @@
         const url = URL.createObjectURL(blob);
         await new Promise(r => { const n = new Image(); n.onload = n.onerror = r; n.src = url; });
         im.src = url;
+        await (im.decode ? im.decode() : Promise.resolve()).catch(() => {}); // ready before the next one: no blank tiles
       } catch (e) { return; } // unsupported or blocked: the live clip stays on, which still looks right
     }
     $("#world-stage").classList.add("baked");
@@ -639,6 +640,9 @@
   const ISL = { morphed: false, revealing: false, chunks: [] };
   ISL.ready = new Promise(r => { ISL._ready = r; });
   ISL.baked = new Promise(r => { ISL._baked = r; });
+  // the real map is ready to show: every tile trimmed to the coast, swapped in and decoded (never shown half-done)
+  ISL.mapReady = new Promise(r => { ISL._mapReady = r; });
+  const mapReadyOrTimeout = () => Promise.race([ISL.mapReady, sleep(12000)]);
   /* The arrival show: logo -> logo island -> the island breaks apart and every district flies back to its real spot ->
      the original two islands. instant = skip the show (arriving zoomed in, e.g. a shared link to a place). */
   ISL.reveal = async (instant) => {
@@ -655,10 +659,10 @@
         const sk = $("#logo-skin"); if (sk) sk.remove();
       }, 1200);
     };
-    if (instant || REDUCE || !ISL.chunks.length) return finish();
+    if (instant || REDUCE || !ISL.chunks.length) { await mapReadyOrTimeout(); return finish(); }
     await sleep(450);
     st.classList.remove("premorph");                 // 1. the logo fades into the logo island
-    await sleep(1700 + 1500);                         // 2. ...which holds for a moment
+    await Promise.all([sleep(1700 + 1500), mapReadyOrTimeout()]); // 2. ...which holds until the real map is fully ready
     st.classList.add("breaking");                     // 3. its coast dissolves and the districts fly home
     ISL.chunks.forEach((c, i) => {
       const delay = (i % 4) * .07 + Math.floor(i / 4) * .09;
@@ -814,7 +818,6 @@
       console.warn("Logo island: could not bake the art (open the site through start.bat, not as a file).", e);
     }
     ISL._baked();
-    buildCoast().catch(() => {}); // the real islands' coastline, for after the island breaks apart
   }
 
   /* ---------------- the full experience (optional) ----------------
@@ -1362,6 +1365,8 @@
     buildOverlay(); wireInput(); runFerry(); cookie();
     if (!REDUCE) requestAnimationFrame(spaceLoop);
     buildLogoIsland().catch(e => { console.error("Logo island:", e); ISL._ready(); ISL._baked(); });
+    // the real islands' coastline and trimmed tiles get prepared straight away, while the visitor is still in space
+    buildCoast().catch(() => {}).then(() => { if (!$("#world-stage").classList.contains("clipped")) ISL._mapReady(); });
     $("#list h1").textContent = T.list.headline; $("#list .sub").textContent = T.list.sub;
     $("#notfound h1").textContent = T.notFound.headline; $("#notfound p").textContent = T.notFound.body;
     await loader();
