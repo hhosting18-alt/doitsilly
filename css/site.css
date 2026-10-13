@@ -26,7 +26,6 @@ a{color:inherit}
 /* the dotted sea slides on the GPU instead of being repainted every frame */
 #sea-deep{position:absolute;inset:0;pointer-events:none}
 #sea-dots{position:absolute;inset:-40px;background-image:radial-gradient(circle,#05489A 1.6px,transparent 2px);background-size:40px 40px;will-change:transform;pointer-events:none}
-.stage.moving{will-change:transform}
 #world-stage{z-index:1}
 
 /* the logo island (buildLogoIsland in app.js) */
@@ -50,11 +49,8 @@ a{color:inherit}
 .fx-btn{gap:8px}
 .fx-btn[aria-pressed=true]{background:var(--ink);color:#fff}
 .fx-btn[aria-pressed=true]:hover{background:var(--lime);color:var(--ink)}
-/* the full experience moves ONE flattened layer per scene (no 3D stacking), so nothing can separate and it stays smooth */
-#world-tilt{position:absolute;inset:0;transform-origin:50% 50%}
-body.fx #world-tilt,body.fx #labels{will-change:transform;transform-origin:50% 50%}
-body.fx :is(#par-far,#par-near) {will-change:transform;transition:none !important}
-body.fx #space-stage .space-bg{will-change:transform}
+/* the full experience pans the camera and slides the sky in plain 2D: nothing huge is forced onto one GPU layer */
+#world-tilt{position:absolute;inset:0}
 /* no visible panel: the camera feed is kept as an invisible 1px element only so tracking can read it */
 .fx-panel{position:fixed;left:0;bottom:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1}
 .fx-panel video{display:block;width:1px;height:1px}
@@ -274,7 +270,8 @@ body:has(#menu:not([hidden])) :is(.trail,.zoom,.hint,.tour-start,.cookie,#labels
 #space{cursor:crosshair}
 .space-fx{position:absolute;left:0;top:0;width:1600px;height:1000px;z-index:1;pointer-events:none;overflow:visible}
 .space-bg{z-index:0}
-.par{will-change:transform;transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+.par{transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+body.fx .par{transition:none}
 .tw{animation:tw var(--tw,3s) ease-in-out infinite}
 @keyframes tw{0%,100%{opacity:1}50%{opacity:.15}}
 .sp{position:absolute;left:0;top:0;display:block;padding:0;border:0;background:none;cursor:pointer;color:inherit;will-change:transform}

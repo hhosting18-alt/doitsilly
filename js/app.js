@@ -25,15 +25,11 @@
 
   /* ---------------- camera ---------------- */
   class Cam {
-    constructor(view, stage, W, H, onChange) { Object.assign(this, { view, stage, W, H, onChange, s: 1, tx: 0, ty: 0, anim: null }); }
+    constructor(view, stage, W, H, onChange) { Object.assign(this, { view, stage, W, H, onChange, s: 1, tx: 0, ty: 0, ox: 0, oy: 0, anim: null }); }
     get vw() { return this.view.clientWidth; } get vh() { return this.view.clientHeight; }
-    apply() { this.stage.style.transform = `translate3d(${this.tx}px,${this.ty}px,0) scale(${this.s})`; this.wake(); this.onChange && this.onChange(); }
-    // While the camera moves, the stage is promoted to its own GPU layer (smooth). Once it settles, the promotion
-    // is dropped so the browser redraws the art crisp at the new zoom instead of keeping a blurry scaled copy.
-    wake() {
-      if (!this.moving) { this.moving = true; this.stage.classList.add("moving"); }
-      clearTimeout(this.sleepT); this.sleepT = setTimeout(() => { this.moving = false; this.stage.classList.remove("moving"); }, 220);
-    }
+    // A plain 2D transform: the browser always draws the whole map. (Forcing the 9800 x 5400 map onto one GPU layer made
+    // browsers draw it in strips, so parts showed up blank while it moved.) ox/oy: the full experience's lean offset.
+    apply() { this.stage.style.transform = `translate(${(this.tx + this.ox).toFixed(2)}px,${(this.ty + this.oy).toFixed(2)}px) scale(${this.s})`; this.onChange && this.onChange(); }
     clamp(st) {
       const { W, H } = this, vw = this.vw, vh = this.vh;
       st.tx = W * st.s >= vw ? Math.min(0, Math.max(vw - W * st.s, st.tx)) : (vw - W * st.s) / 2;
@@ -73,8 +69,8 @@
       const s = Math.min(maxS, Math.max(minS, this.s * factor)), k = s / this.s;
       this.set({ s, tx: mx - (mx - this.tx) * k, ty: my - (my - this.ty) * k });
     }
-    toWorld(mx, my) { return { x: (mx - this.tx) / this.s, y: (my - this.ty) / this.s }; }
-    project(x, y) { return { x: x * this.s + this.tx, y: y * this.s + this.ty }; }
+    toWorld(mx, my) { return { x: (mx - this.tx - this.ox) / this.s, y: (my - this.ty - this.oy) / this.s }; }
+    project(x, y) { return { x: x * this.s + this.tx + this.ox, y: y * this.s + this.ty + this.oy }; }
   }
 
   /* ---------------- state ---------------- */
@@ -840,19 +836,19 @@
     FX.ox += (FX.tox - FX.ox) * k; FX.oy += (FX.toy - FX.oy) * k; FX.p += (FX.tp - FX.p) * k;
     // like a window: lean left and you see further to the right, lean up and you see further down
     const hx = (FX.ox - .5) / .42, hy = (FX.oy - .5) / .34, lean = (1100 - FX.p) / 520; // lean: + when closer
-    let tilt = "", sky = null;
+    let sky = null;
     if (S.scene === "world") {
-      // the whole map moves as ONE piece: it slides opposite to your head, tilts gently, and comes closer as you lean in
-      tilt = `translate3d(${(hx * innerWidth * .34).toFixed(1)}px,${(hy * innerHeight * .3).toFixed(1)}px,0) perspective(1100px) rotateX(${(-hy * 6).toFixed(2)}deg) rotateY(${(hx * 7).toFixed(2)}deg) scale(${(1.06 + lean * .08).toFixed(4)})`;
+      // the camera itself slides opposite to your head (labels and pins follow, since they use the same camera)
+      const ox = hx * innerWidth * .3, oy = hy * innerHeight * .26;
+      if (Math.abs(ox - world.ox) > .3 || Math.abs(oy - world.oy) > .3) { world.ox = ox; world.oy = oy; world.apply(); }
     } else {
       // space: the far sky slides with you more than the near stars, so the planet floats in front of them
-      const s = (f) => `translate3d(${(hx * innerWidth * f).toFixed(1)}px,${(hy * innerHeight * f).toFixed(1)}px,0) scale(${(1 + lean * f).toFixed(4)})`;
+      const s = (f) => `translate(${(hx * innerWidth * f).toFixed(1)}px,${(hy * innerHeight * f).toFixed(1)}px) scale(${(1 + lean * f).toFixed(4)})`;
       sky = [s(.14), s(.09), s(.05)];
     }
-    const key = tilt + (sky ? sky.join() : "");
+    const key = sky ? sky.join() : "";
     if (key === FX.lastKey) return; // nothing moved: write nothing
     FX.lastKey = key;
-    $("#world-tilt").style.transform = tilt; $("#labels").style.transform = tilt;
     const bg = $("#space-stage .space-bg"), far = $("#par-far"), near = $("#par-near");
     if (bg) bg.style.transform = sky ? sky[0] : "";
     if (far) far.style.transform = sky ? sky[1] : "";
@@ -918,7 +914,8 @@
     FX.on = false; FX.mode = null; cancelAnimationFrame(FX.raf); stopStream();
     document.body.classList.remove("fx");
     FX.lastKey = ""; FX.lastFrame = 0;
-    ["#world-tilt", "#labels", "#space-stage .space-bg", "#par-far", "#par-near"].forEach(s => { const el = $(s); if (el) el.style.transform = ""; });
+    if (world && (world.ox || world.oy)) { world.ox = world.oy = 0; world.apply(); }
+    ["#space-stage .space-bg", "#par-far", "#par-near"].forEach(s => { const el = $(s); if (el) el.style.transform = ""; });
     FX.ox = FX.oy = FX.tox = FX.toy = .5; FX.p = FX.tp = 1100;
     $("#fx-panel").hidden = true; $("#fx-panel").classList.remove("cam");
     $("#fx-btn").setAttribute("aria-pressed", "false");
@@ -1013,7 +1010,7 @@
     return ISLANDS.reduce((best, k) => d(C.islands[k].rect) < d(C.islands[best].rect) ? k : best, ISLANDS[0]);
   }
   function onCamChange() {
-    if (world && S.scene === "world") { const m = v => ((v % 40) + 40) % 40; seaDots().style.transform = `translate3d(${m(world.tx).toFixed(1)}px,${m(world.ty).toFixed(1)}px,0)`; }
+    if (world && S.scene === "world") { const m = v => ((v % 40) + 40) % 40; seaDots().style.transform = `translate(${m(world.tx + world.ox).toFixed(1)}px,${m(world.ty + world.oy).toFixed(1)}px)`; }
     const lv = computeLevel();
     if (lv !== S.level) { S.level = lv; updateChrome(); if (!S.place && !S.routing && !S.transitioning && !S.page) setHash(lv === "system" ? "#/system" : "#/" + lv); }
     scheduleOverlay();
@@ -1293,8 +1290,8 @@
         par = [e.clientX / innerWidth - .5, e.clientY / innerHeight - .5];
         if (!parRaf) parRaf = requestAnimationFrame(() => {
           parRaf = 0; const [mx, my] = par;
-          far.style.transform = `translate3d(${(-mx * 10).toFixed(1)}px,${(-my * 10).toFixed(1)}px,0)`;
-          near.style.transform = `translate3d(${(-mx * 26).toFixed(1)}px,${(-my * 26).toFixed(1)}px,0)`;
+          far.style.transform = `translate(${(-mx * 10).toFixed(1)}px,${(-my * 10).toFixed(1)}px)`;
+          near.style.transform = `translate(${(-mx * 26).toFixed(1)}px,${(-my * 26).toFixed(1)}px)`;
         });
       });
     }
