@@ -31,11 +31,11 @@ the beach around the islands is traced from the map pixels, which browsers only 
   Click empty space to make a wish (a shooting star flies from where you clicked).
 - **Islands**: every local stays put and says hi when clicked, with a link to the nearest place.
   "Locals met: n of m" counts how many kinds you've greeted. Clouds go poof.
-- **The logo island**: the map is ONE island in the shape of the DOITSILLY logo (`js/logo-shape.js`, `art/logo-island.svg`).
-  On load, `buildLogoIsland()` in `js/app.js` cuts the original island art (the tiles in `art/map/`) into 12 districts,
-  lays them out on a 4 x 3 grid inside the logo outline, and moves every place, pin and local with its district.
-  The right-hand column is About Us. Coming in from space, the logo lands on the sea and fades into the island in the
-  same spot. Tune it in `js/config.js` → `logoIsland` (island width, district seed points, grid order, overlap).
+- **The arrival show**: coming in from space, the DOITSILLY logo lands on the sea, fades into ONE island in the logo's
+  shape, holds for a moment, then breaks apart: every district flies back to its real spot and the two islands you
+  explore take over (coastline, locals, ferry, labels). `buildLogoIsland()` in `js/app.js` makes the logo island from
+  the map art (12 districts around the seed points in `js/config.js` → `logoIsland`, laid out on a 4 x 3 grid);
+  `ISL.reveal()` runs the show. Arriving zoomed in (a shared link to a place) skips it.
 - **View full experience** (button by the zoom controls, in space and on the map): optional. It goes fullscreen, asks
   for the camera, and follows the viewer's head (MediaPipe face landmarker, loaded only then from jsDelivr and Google's
   model host), so leaning left, right, in and out shifts the view like looking through a window. The video never leaves

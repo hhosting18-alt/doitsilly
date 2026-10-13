@@ -29,10 +29,10 @@ window.DIS_CONFIG = {
   { "id": "who", "island": "about", "label": [6162, 2547], "pin": [6162, 2437], "rect": [5662, 2137, 1000, 700] },
   { "id": "team", "island": "about", "label": [6942, 2187], "pin": [6942, 2077], "rect": [6442, 1777, 1000, 700] }
  ],
- "ferry": null,
- /* The map is ONE island in the shape of the logo (js/logo-shape.js). The original island art is cut into 12 districts
-    around these seed points (world px of the art), and the districts are laid out on a 4 x 3 grid inside the logo.
-    The right-hand column is About Us; the rest is the studio. Places, pins and locals move with their district. */
+ "ferry": { "art": "art/cast/ferry.svg", "w": 300, "a": [5000, 2250], "b": [5850, 2150], "dur": 16, "label": [5360, 2830] },
+ /* The intro island: when you arrive from space, the logo becomes ONE island in the logo's shape (js/logo-shape.js),
+    built from the map art cut into 12 districts around these seed points (world px) and laid out on a 4 x 3 grid.
+    It then breaks apart and every district flies back to its real spot, forming the two islands you explore. */
  "logoIsland": {
   "width": 4600,
   "seeds": {

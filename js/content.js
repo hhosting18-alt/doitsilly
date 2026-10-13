@@ -29,7 +29,7 @@ window.DIS_CONTENT = {
 
   hints: {
     system: "Drag Scribble anywhere. Drop it on a side to go in. Click empty space to make a wish.",
-    islands: "Click the island to zoom in. Drag to look around.",
+    islands: "Click an island to zoom in. Drag to look around.",
     studio: "Click a pin to go in. Click the locals to say hi.",
     about: "Four stops. Start at The Pizza Party."
   },

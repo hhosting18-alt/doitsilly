@@ -30,14 +30,19 @@ a{color:inherit}
 #world-stage{z-index:1}
 
 /* the logo island (buildLogoIsland in app.js) */
-.layer-src{display:none}
+/* the arrival show: .premorph (the logo) -> (the logo island) -> .breaking (districts fly home) -> .broken (the real islands) */
+.layer-src-base{z-index:0}.layer-src-fg{z-index:2}
+#world-stage :is(.layer-src,#coast-old,#sprites,.ferry){opacity:0;visibility:hidden;transition:opacity .8s ease,visibility 0s .8s}
+#world-stage.broken :is(.layer-src,#coast-old,#sprites,.ferry){opacity:1;visibility:visible;transition:opacity .8s ease,visibility 0s}
 .chunk{position:absolute;display:block;user-select:none;-webkit-user-drag:none;pointer-events:none}
 .layer-skin{z-index:4}
 #logo-skin{position:absolute;display:block;opacity:0;pointer-events:none;user-select:none;transition:opacity 1.5s ease .1s}
-#world-stage .layer-coast,#world-stage #chunks,#world-stage #sprites,#world-stage .compass{transition:opacity 1.6s ease}
+#world-stage #coast,#world-stage #chunks,#world-stage .compass{transition:opacity 1.6s ease}
 #world-stage.premorph #logo-skin{opacity:1}
-#world-stage.premorph .layer-coast,#world-stage.premorph #chunks,#world-stage.premorph #sprites,#world-stage.premorph .compass{opacity:0}
-#world-stage.premorph .layer-coast{transition-delay:.5s}
+#world-stage.premorph :is(#coast,#chunks,.compass){opacity:0}
+#world-stage.premorph #coast{transition-delay:.5s}
+#world-stage:is(.breaking,.broken) #coast{opacity:0;transition:opacity 1s ease}
+#world-stage.broken #chunks{opacity:0;visibility:hidden;transition:opacity .8s ease,visibility 0s .8s}
 
 /* the full experience: head tracking moves the vanishing point; layers sit at different depths */
 .fx-btn{gap:8px}
@@ -252,7 +257,7 @@ body:has(#menu:not([hidden])) :is(.trail,.zoom,.hint,.tour-start,.cookie,#labels
 .c-halo{fill:#4F9BF7;opacity:.6}
 .c-foam{fill:none;stroke:#fff;stroke-width:7;stroke-dasharray:30 24;stroke-linecap:round;opacity:.75}
 .c-beach{fill:#FFE6C2;stroke:#111;stroke-width:8;stroke-linejoin:round}
-#world-stage.clipped:not(.baked) .layer-base,#world-stage.clipped:not(.baked) .layer-fg{clip-path:url(#dis-art-clip)}
+#world-stage.clipped:not(.baked) .layer-src-base,#world-stage.clipped:not(.baked) .layer-src-fg{clip-path:url(#dis-art-clip)}
 
 /* speech bubble */
 .say{position:fixed;left:0;top:0;z-index:14;max-width:250px;padding:10px 14px 11px;background:var(--paper);border:var(--line);border-radius:16px;font-size:14px;line-height:1.35;font-weight:500;box-shadow:3px 3px 0 var(--ink)}

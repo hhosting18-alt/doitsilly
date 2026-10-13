@@ -414,10 +414,13 @@
     const tile = t => `<img class="tile" alt="" src="${t.src}" data-x="${t.x}" data-y="${t.y}" data-w="${t.w}" data-h="${t.h}" decoding="async" style="left:${t.x}px;top:${t.y}px;width:${t.w + 1}px;height:${t.h + 1}px" draggable="false">`;
     // The original tiles are only SOURCE art now: buildLogoIsland() cuts them into districts and lays them out inside the
     // logo outline (#chunks). The logo itself (#logo-skin) sits on top until the island is ready, then fades away.
+    // Layers, bottom to top: the logo-island coast, the original coast, the original art (shown once the island has
+    // broken apart), the logo-island districts (#chunks), locals, the original foreground art, clouds, and the logo itself.
     st.innerHTML = `<svg class="layer layer-coast" id="coast" viewBox="0 0 ${C.world[0]} ${C.world[1]}" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <svg class="layer layer-coast" id="coast-old" viewBox="0 0 ${C.world[0]} ${C.world[1]}" preserveAspectRatio="none" aria-hidden="true"></svg>
       <div class="layer layer-src layer-src-base" aria-hidden="true">${M.tiles.filter(t => t.layer === "base").map(tile).join("")}</div>
-      <div class="layer layer-src layer-src-fg" aria-hidden="true">${M.tiles.filter(t => t.layer === "fg").map(tile).join("")}</div>
       <div class="layer layer-base" id="chunks"></div><div class="layer layer-sprites" id="sprites"></div>
+      <div class="layer layer-src layer-src-fg" aria-hidden="true">${M.tiles.filter(t => t.layer === "fg").map(tile).join("")}</div>
       <div class="layer layer-top" id="sprites-top"></div><div class="layer layer-skin"><img id="logo-skin" src="art/logo-island.svg" alt="" draggable="false"></div>`;
     st.classList.add("premorph");
     const low = $("#sprites"), top = $("#sprites-top"), kept = [];
@@ -588,7 +591,7 @@
     store.set(key, JSON.stringify(d)); applyCoast(d);
   }
   function applyCoast(d) {
-    $("#coast").innerHTML = `<defs><clipPath id="dis-art-clip" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="${d.clip}"/></clipPath></defs>
+    $("#coast-old").innerHTML = `<defs><clipPath id="dis-art-clip" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="${d.clip}"/></clipPath></defs>
       <path class="c-halo" fill-rule="evenodd" d="${d.halo}"/><path class="c-foam" d="${d.foam}"/><path class="c-beach" fill-rule="evenodd" d="${d.beach}"/>`;
     $("#world-stage").classList.add("clipped");
     setTimeout(() => bakeTiles(d.clip), 400);
@@ -628,18 +631,33 @@
        4. in the background each district is cut out of the full-quality art and baked into one image, clipped to
           the logo outline (ISL.baked).
      The logo (#logo-skin) covers the island until then; ISL.reveal() fades it away so the logo becomes the island. */
-  const ISL = { morphed: false, revealing: false };
+  const ISL = { morphed: false, revealing: false, chunks: [] };
   ISL.ready = new Promise(r => { ISL._ready = r; });
   ISL.baked = new Promise(r => { ISL._baked = r; });
-  ISL.reveal = async () => {
+  /* The arrival show: logo -> logo island -> the island breaks apart and every district flies back to its real spot ->
+     the original two islands. instant = skip the show (arriving zoomed in, e.g. a shared link to a place). */
+  ISL.reveal = async (instant) => {
     if (ISL.morphed || ISL.revealing) return;
     ISL.revealing = true;
     await ISL.baked;
-    await sleep(REDUCE ? 0 : 500);
-    $("#world-stage").classList.remove("premorph");   // CSS cross-fades the logo out and the island in
-    await sleep(REDUCE ? 0 : 1700);
-    ISL.morphed = true; ISL.revealing = false;
-    updateChrome(); scheduleOverlay();
+    const st = $("#world-stage");
+    const finish = () => { st.classList.remove("premorph", "breaking"); st.classList.add("broken"); ISL.morphed = true; ISL.revealing = false; updateChrome(); scheduleOverlay(); };
+    if (instant || REDUCE || !ISL.chunks.length) return finish();
+    await sleep(450);
+    st.classList.remove("premorph");                 // 1. the logo fades into the logo island
+    await sleep(1700 + 1500);                         // 2. ...which holds for a moment
+    st.classList.add("breaking");                     // 3. its coast dissolves and the districts fly home
+    ISL.chunks.forEach((c, i) => {
+      const delay = (i % 4) * .07 + Math.floor(i / 4) * .09;
+      c.el.style.willChange = "transform";
+      c.el.style.transition = `transform 1.7s cubic-bezier(.65,0,.25,1) ${delay.toFixed(2)}s`;
+      c.el.style.transform = c.home;
+    });
+    await sleep(2050);
+    st.classList.add("broken");                       // 4. the real islands take over: coastline, locals, ferry, labels
+    await sleep(700);
+    ISL.chunks.forEach(c => { c.el.style.willChange = ""; });
+    finish();
   };
   function largestPiece(mask, W, H) {
     const lab = new Int32Array(W * H), stack = new Int32Array(W * H); let best = 0, bestId = 0, id = 0;
@@ -664,6 +682,7 @@
     const [vx, vy, vw, vh] = LG.vb;
     const IW = L.width, IH = IW * vh / vw, IX = Math.round((C.world[0] - IW) / 2), IY = Math.round((C.world[1] - IH) / 2), sc = IW / vw;
     ISL.rect = [IX, IY, IW, IH];
+    ISL._ready(); // nothing on the real map waits for the intro island
     const toWorld = new DOMMatrix([sc, 0, 0, sc, IX - vx * sc, IY - vy * sc]);
     const logoPath = new Path2D(); logoPath.addPath(new Path2D(LG.d), toWorld);
 
@@ -730,32 +749,7 @@
       dd.dst = [IX + cw * (c + .5), IY + ch * (r + .5)];
       dd.about = L.about.includes(n);
     }));
-    const move = (k, x, y) => { const dd = DIST[k]; return [dd.dst[0] + (x - dd.src[0]) * dd.s, dd.dst[1] + (y - dd.src[1]) * dd.s]; };
-    // places, pins and camera frames travel with their district
-    for (const d of C.districts) {
-      const k = ownerAt(d.pin[0], d.pin[1]);
-      d.pin = move(k, d.pin[0], d.pin[1]); d.label = move(k, d.label[0], d.label[1]);
-      const c = move(k, d.rect[0] + d.rect[2] / 2, d.rect[1] + d.rect[3] / 2);
-      d.rect = [c[0] - d.rect[2] / 2, c[1] - d.rect[3] / 2, d.rect[2], d.rect[3]];
-    }
-    // the locals too: they keep their spot on the art, and anyone left outside the outline stays home
-    for (const o of CAST) {
-      const c = o.c, k = ownerAt(c.x + c.w / 2, c.y + c.w / 2), dd = DIST[k];
-      const [nx, ny] = move(k, c.x, c.y);
-      const inside = g.isPointInPath(logoPath, nx + c.w * dd.s / 2, ny + c.w * dd.s / 2);
-      o.el.style.cssText = `left:${nx.toFixed(0)}px;top:${ny.toFixed(0)}px;width:${(c.w * dd.s).toFixed(0)}px`;
-      o.el.hidden = !inside;
-    }
-    // the two halves of the island, for the camera and the menu
-    const aboutX = IX + cw * (cols - 1);
-    C.islands.studio.rect = [IX, IY, aboutX - IX, IH]; C.islands.about.rect = [aboutX, IY, IX + IW - aboutX, IH];
-    C.islands.studio.label = [IX + (aboutX - IX) / 2, IY + IH + 330]; C.islands.about.label = [aboutX + cw / 2, IY + IH + 330];
-    C.islandsFit = [IX - 760, IY - 420, IW + 1520, IH + 1060];
-    const cp = $("#compass"); if (cp) cp.style.cssText = `left:${IX - 700}px;top:${IY + IH - 520}px;width:520px`;
-    fitS = islandsTarget().s;
-    if (S.scene !== "world") world.set(islandsTarget());
-    buildOverlay(); scheduleOverlay();
-    ISL._ready();
+    ISL._ready(); // the real map's places, pins, locals and camera frames stay exactly where they always were
 
     // 4. bake each district from the full-quality art, clipped to its own border and to the logo outline
     const R = L.bakeScale, all = src.concat(srcFg), host = $("#chunks");
@@ -786,14 +780,16 @@
         img.src = URL.createObjectURL(blob);
         await (img.decode ? img.decode() : Promise.resolve()).catch(() => {});
         host.appendChild(img);
+        // where this piece lives on the real map: the same art, back at its original place and size
+        const hx0 = dd.src[0] + (x0 - dd.dst[0]) / dd.s, hy0 = dd.src[1] + (y0 - dd.dst[1]) / dd.s;
+        img.style.transformOrigin = "0 0";
+        ISL.chunks.push({ el: img, home: `translate3d(${(hx0 - x0).toFixed(1)}px,${(hy0 - y0).toFixed(1)}px,0) scale(${(1 / dd.s).toFixed(4)})` });
       }
-      // the source tiles are no longer needed: free their memory
-      for (const im of all) im.removeAttribute("src");
-      $$("#world-stage .layer-src").forEach(el => el.remove());
     } catch (e) {
       console.warn("Logo island: could not bake the art (open the site through start.bat, not as a file).", e);
     }
     ISL._baked();
+    buildCoast().catch(() => {}); // the real islands' coastline, for after the island breaks apart
   }
 
   /* ---------------- the full experience (optional) ----------------
@@ -1035,7 +1031,7 @@
     await p1;
     document.body.classList.remove("zooming"); S.transitioning = false; S.busy = false;
     world.set(target); onCamChange(); updateChrome();
-    ISL.reveal();
+    ISL.reveal(S.level !== "islands");
   }
   const spaceHome = () => space.fit([60, 40, 1500, 960], .02);
   async function enterSpace() {
