@@ -15,13 +15,13 @@
 <a class="skip" href="#/list">Skip the map: see everything as a list</a>
 
 <!-- scenes -->
-<div id="space" class="scene" aria-label="Solar system"><div id="space-stage" class="stage"></div></div>
-<div id="world" class="scene" tabindex="0" aria-label="Map of DOITSILLY Island and Community Island. Drag or use arrow keys to look around."><div id="world-stage" class="stage"></div></div>
+<div id="space" class="scene" aria-label="Space, with the DOITSILLY planet"><div id="space-stage" class="stage"></div></div>
+<div id="world" class="scene" tabindex="0" aria-label="Map of the DOITSILLY island, shaped like the logo. Drag or use arrow keys to look around."><div id="world-tilt"><div id="sea-deep" aria-hidden="true"><div id="sea-dots"></div></div><div id="world-stage" class="stage"></div></div></div>
 <div id="labels" aria-label="Places on the map"></div>
 
 <!-- chrome -->
 <header class="chrome">
-  <a class="logo" href="#/system" aria-label="DOITSILLY, zoom out to the solar system"><img id="logo-img" alt="DO IT SILLY" width="64" height="64"></a>
+  <a class="logo" id="logo" href="#/system" aria-label="DOITSILLY, back to space"><img id="logo-img" alt="DO IT SILLY" width="64" height="64" draggable="false"></a>
   <div class="top-right">
     <a class="pill pink" href="#/studio/contact">Start a project</a>
     <button id="menu-btn" class="pill" type="button" aria-expanded="false" aria-controls="menu">MENU <span aria-hidden="true">=</span></button>
@@ -30,7 +30,24 @@
 <nav id="trail" class="pill trail" aria-label="Where you are"></nav>
 <p id="hint" class="pill hint" hidden><span></span></p>
 <button id="tour-start" class="pill tour-start" type="button" hidden>Take the tour</button>
-<div class="zoom"><button id="zoom-in" class="pill sq" type="button" aria-label="Zoom in">+</button><button id="zoom-out" class="pill sq" type="button" aria-label="Zoom out">–</button></div>
+<div class="zoom"><button id="fx-btn" class="pill fx-btn" type="button" aria-pressed="false" aria-label="View full experience: uses your camera to follow your head"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg><span class="fx-label">View full experience</span></button><button id="zoom-in" class="pill sq" type="button" aria-label="Zoom in">+</button><button id="zoom-out" class="pill sq" type="button" aria-label="Zoom out">–</button></div>
+
+<!-- full experience: shown only after someone turns it on -->
+<div id="fx-panel" class="fx-panel" role="status" hidden>
+  <video id="fx-video" playsinline muted aria-hidden="true"></video>
+  <div class="fx-text"><b id="fx-title"></b><small id="fx-note"></small></div>
+  <button id="fx-exit" class="pill" type="button">Exit</button>
+</div>
+
+<!-- pick a side: drag Scribble out of the logo onto a landing pad -->
+<div id="pick" class="pick" role="dialog" aria-labelledby="pick-title" hidden>
+  <div class="pick-head"><h2 id="pick-title"></h2><p id="pick-sub"></p></div>
+  <button class="pad" type="button" data-side="studio"><span class="pad-ring" aria-hidden="true"></span><span class="pad-art"></span><span class="pad-label"><b></b><small></small></span></button>
+  <button class="pad" type="button" data-side="community"><span class="pad-ring" aria-hidden="true"></span><span class="pad-art"></span><span class="pad-label"><b></b><small></small></span></button>
+  <button id="pick-close" class="pill pick-close" type="button"></button>
+</div>
+<div id="token" class="token" aria-hidden="true" hidden><span class="token-art"></span><span class="token-say"></span></div>
+<div id="wipe" class="wipe" aria-hidden="true" hidden></div>
 
 <div id="tour" class="tour" role="dialog" aria-label="Studio tour" hidden>
   <span class="tour-n"></span><p></p>
@@ -47,14 +64,17 @@
   <div id="panel-body" class="panel-body"></div>
 </aside>
 
+<!-- community landing page (#/community) -->
+<main id="community" class="cpage" aria-labelledby="c-title" hidden></main>
+
 <!-- menu -->
 <div id="menu" class="menu" hidden>
   <div class="menu-inner">
     <p class="menu-lead">Brands, built silly. Creatives, gathered. Messy ideas welcome.</p>
     <div class="menu-grid">
       <section><h2>DOITSILLY Island</h2><ul id="menu-studio"></ul></section>
-      <section><h2>Community Island</h2><ul><li><a href="#/community">Island map<small>3rd Space</small></a></li><li><span class="soon">Places and pages land with the community content.</span></li></ul></section>
-      <section><h2>Elsewhere</h2><ul id="menu-else"></ul></section>
+      <section><h2>About Us Island</h2><ul id="menu-about"></ul></section>
+      <section><h2>Community</h2><ul><li><a href="#/community">DOITSILLY Community<small>Creatives, gathered</small></a></li></ul><h2 class="menu-h2b">Elsewhere</h2><ul id="menu-else"></ul></section>
     </div>
     <footer class="menu-foot"><p class="signoff">Until you DO IT SILLY.</p><p>3rd Space, [STREET ADDRESS], Indiranagar, Bangalore [PIN] · [EMAIL] · [WHATSAPP]</p><p>© 2026 DOITSILLY · Privacy · Terms · Cookies</p></footer>
   </div>
@@ -63,10 +83,11 @@
 <!-- list view -->
 <div id="list" class="sheet" hidden>
   <div class="sheet-inner">
-    <a class="pill" href="#/studio">Back to the map</a>
+    <a class="pill" href="#/islands">Back to the map</a>
     <h1 tabindex="-1"></h1><p class="sub"></p>
     <h2>The Studio</h2><ul id="list-studio"></ul>
-    <h2>3rd Space</h2><ul><li><a href="#/community">Community Island</a> <span>Content landing soon.</span></li></ul>
+    <h2>About Us</h2><ul id="list-about"></ul>
+    <h2>Community</h2><ul><li><a href="#/community">DOITSILLY Community</a> <span>Creatives, gathered.</span></li></ul>
   </div>
 </div>
 
@@ -85,6 +106,7 @@
 
 <script src="js/assets.js"></script>
 <script src="js/map-data.js"></script>
+<script src="js/logo-shape.js"></script>
 <script src="js/config.js"></script>
 <script src="js/content.js"></script>
 <script src="js/app.js"></script>

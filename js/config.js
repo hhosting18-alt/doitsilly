@@ -1,6 +1,7 @@
 /* DOITSILLY map configuration. World units = pixels of the map art (9800 x 5400). Rects are [x, y, width, height].
-   districts: the eight DOITSILLY places (label = name pill, pin = "i" pin tip, rect = what the camera frames when the place opens).
-   communityPlaces: placeholder spots on Community Island (content coming later).
+   islands: DOITSILLY Island (the studio) and About Us Island (who we are).
+   districts: every clickable place on both islands (label = name pill, pin = "i" pin tip, rect = what the camera frames
+   when the place opens). "island" decides which island it belongs to and its address: #/studio/<id> or #/about/<id>.
    formEndpoint: set to a URL (e.g. Formspree, your backend) to receive "Start a project" briefs as JSON.
    The beach around the islands is traced from the map tiles in the browser and cached; it rebuilds by itself when the tile list changes. */
 window.DIS_CONFIG = {
@@ -11,8 +12,8 @@ window.DIS_CONFIG = {
  "islandsFit": [300, 150, 9300, 5000],
  "maxScale": 1.0,
  "islands": {
-  "studio": { "rect": [450, 250, 5930, 4630], "label": [2950, 560] },
-  "community": { "rect": [5950, 850, 3290, 2820], "label": [7350, 820] }
+  "studio": { "rect": [450, 250, 5930, 4630], "label": [1560, 4180] },
+  "about": { "rect": [5950, 850, 3290, 2820], "label": [7350, 3760] }
  },
  "districts": [
   { "id": "design", "island": "studio", "label": [2284, 1780], "pin": [2284, 1650], "rect": [1634, 1290, 1300, 900] },
@@ -20,17 +21,30 @@ window.DIS_CONFIG = {
   { "id": "production", "island": "studio", "label": [4324, 1468], "pin": [4324, 1338], "rect": [3674, 978, 1300, 900] },
   { "id": "content", "island": "studio", "label": [2872, 2872], "pin": [2872, 2742], "rect": [2222, 2382, 1300, 900] },
   { "id": "tech", "island": "studio", "label": [4072, 2476], "pin": [4072, 2346], "rect": [3422, 1986, 1300, 900] },
-  { "id": "about", "island": "studio", "label": [4990, 4010], "pin": [4990, 3880], "rect": [4340, 3500, 1300, 900] },
   { "id": "contact", "island": "studio", "label": [5363, 4560], "pin": [5363, 4320], "rect": [4713, 3990, 1300, 900] },
-  { "id": "strategy", "island": "studio", "label": [1887, 1331], "pin": [1887, 1201], "rect": [1237, 841, 1300, 900] }
+  { "id": "strategy", "island": "studio", "label": [1887, 1331], "pin": [1887, 1201], "rect": [1237, 841, 1300, 900] },
+
+  { "id": "story", "island": "about", "label": [6252, 1767], "pin": [6252, 1657], "rect": [5752, 1357, 1000, 700] },
+  { "id": "modes", "island": "about", "label": [7092, 1587], "pin": [7092, 1477], "rect": [6592, 1177, 1000, 700] },
+  { "id": "who", "island": "about", "label": [6162, 2547], "pin": [6162, 2437], "rect": [5662, 2137, 1000, 700] },
+  { "id": "team", "island": "about", "label": [6942, 2187], "pin": [6942, 2077], "rect": [6442, 1777, 1000, 700] }
  ],
- "communityPlaces": [
-  { "id": "c1", "island": "community", "label": [6252, 1767], "pin": [6252, 1657], "rect": [5752, 1357, 1000, 700] },
-  { "id": "c2", "island": "community", "label": [7092, 1587], "pin": [7092, 1477], "rect": [6592, 1177, 1000, 700] },
-  { "id": "c3", "island": "community", "label": [6162, 2547], "pin": [6162, 2437], "rect": [5662, 2137, 1000, 700] },
-  { "id": "c4", "island": "community", "label": [6942, 2187], "pin": [6942, 2077], "rect": [6442, 1777, 1000, 700] }
- ],
- "ferry": { "art": "art/cast/ferry.svg", "w": 300, "a": [5000, 2250], "b": [5850, 2150], "dur": 16 },
+ "ferry": null,
+ /* The map is ONE island in the shape of the logo (js/logo-shape.js). The original island art is cut into 12 districts
+    around these seed points (world px of the art), and the districts are laid out on a 4 x 3 grid inside the logo.
+    The right-hand column is About Us; the rest is the studio. Places, pins and locals move with their district. */
+ "logoIsland": {
+  "width": 4600,
+  "seeds": {
+   "pinkwest": [2062, 1501], "spiral": [1802, 2436], "toplime": [3880, 1060], "greenne": [4763, 1423],
+   "mountains": [3594, 2125], "snow": [3049, 3345], "park": [4373, 3423], "beach": [5257, 3917],
+   "east": [4685, 2540], "city": [6555, 1761], "eastlobe": [7906, 1969], "forest": [6711, 2930]
+  },
+  "grid": [["pinkwest", "toplime", "greenne", "city"], ["spiral", "mountains", "east", "eastlobe"], ["snow", "park", "beach", "forest"]],
+  "about": ["city", "eastlobe", "forest"],
+  "overlap": 1.18,
+  "bakeScale": 0.8
+ },
  "clouds": [
   { "src": "art/clouds/cloud.svg", "x": 800, "y": 250, "w": 420, "dx": 300, "dur": 70 },
   { "src": "art/clouds/cloud.svg", "x": 3800, "y": 120, "w": 300, "dx": -220, "dur": 55 },

@@ -1,6 +1,6 @@
 # DOITSILLY website
 
-A zoomable illustrated map: solar system → DOITSILLY logo planet → DOITSILLY Island + Community Island → a place.
+A zoomable illustrated map: space (one planet, DOITSILLY) → pick a side → DOITSILLY Island + About Us Island, or the Community page.
 
 ## Run it (Windows)
 
@@ -21,12 +21,26 @@ the beach around the islands is traced from the map pixels, which browsers only 
 
 ## Things you can poke
 
-- **Solar system**: click the sun (it puts on shades), ZESCORP, its moon, the three little planets, the satellite
-  orbiting DOITSILLY, the rocket (it boosts), the astro-bot and the ghost. Click empty space to make a wish
-  (a shooting star flies from where you clicked). Shooting stars and a comet pass by on their own; the stars shift
-  a little as you move the mouse.
+- **Space**: DOITSILLY is the only planet. Scribble (the scribbly pink O) sits in the middle as the planet's O.
+  Drag it anywhere in space and it stays there (drop it back on the planet and it snaps home).
+  Picking it up, tapping it, or clicking the planet brings two landing pads out of the planet; drop Scribble on one:
+  - **DOITSILLY** pad: zooms into the islands.
+  - **Community** pad: a pink wipe into the Community landing page (`#/community`).
+  - Keyboard: Tab to a pad and press Enter, and Scribble flies there by itself. Esc or a click on empty space closes the chooser.
+  Also in space: the sun (it puts on shades), the satellite orbiting DOITSILLY, the rocket (it boosts), the astro-bot and the ghost.
+  Click empty space to make a wish (a shooting star flies from where you clicked).
 - **Islands**: every local stays put and says hi when clicked, with a link to the nearest place.
-  "Locals met: n of m" counts how many kinds you've greeted. Clouds go poof. The ferry gives you a ride to the other island.
+  "Locals met: n of m" counts how many kinds you've greeted. Clouds go poof.
+- **The logo island**: the map is ONE island in the shape of the DOITSILLY logo (`js/logo-shape.js`, `art/logo-island.svg`).
+  On load, `buildLogoIsland()` in `js/app.js` cuts the original island art (the tiles in `art/map/`) into 12 districts,
+  lays them out on a 4 x 3 grid inside the logo outline, and moves every place, pin and local with its district.
+  The right-hand column is About Us. Coming in from space, the logo lands on the sea and fades into the island in the
+  same spot. Tune it in `js/config.js` → `logoIsland` (island width, district seed points, grid order, overlap).
+- **View full experience** (button by the zoom controls, in space and on the map): optional. It goes fullscreen, asks
+  for the camera, and follows the viewer's head (MediaPipe face landmarker, loaded only then from jsDelivr and Google's
+  model host), so leaning left, right, in and out shifts the view like looking through a window. The video never leaves
+  the device. No camera or permission refused: the mouse drives the same effect. Exit turns the camera off. Everyone
+  who doesn't click it gets the normal site. Needs https or localhost (Vercel and start.bat are both fine).
 
 ## Files
 
@@ -41,11 +55,14 @@ the beach around the islands is traced from the map pixels, which browsers only 
 - `art/logo.jpg`: the DOITSILLY logo
 - `art/favicon.svg`: browser tab icon
 - `art/map/`: the island art as tiles (base layer + foreground layer)
-- `art/cast/`: DOITSILLY's characters and vehicles as editable SVGs. `scribble.svg` is the mascot: the pink O from the logo.
+- `art/squiggle.svg`: Scribble, the pink squiggle from the logo, traced from `art/logo.jpg`. The site uses this file everywhere Scribble appears (space, loader, thumbnails, Community page, the planet's O).
+- `art/cast/`: DOITSILLY's characters and vehicles as editable SVGs. `scribble.svg` is the same squiggle, sized to stand on the islands.
 - `art/clouds/`: cloud art
 - `art/_unused/`: the old coastline files, no longer used. Safe to delete.
 
 ## Place names
+
+DOITSILLY Island (the studio):
 
 | Page | Map name |
 |---|---|
@@ -55,10 +72,18 @@ the beach around the islands is traced from the map pixels, which browsers only 
 | Production | Clapper Studios |
 | Tech | The Robot Shed |
 | Work | The Fridge Door |
-| About | The Pizza Party |
 | Start a project | The Big Red Mailbox |
 
-Community Island spots (opening soon): Crayon Corner, The Jam Room, Open Mic Pier, The Snack Shack.
+About Us Island (the old Community Island; the About page is split into four stops):
+
+| Page | Map name |
+|---|---|
+| Our story | The Pizza Party |
+| How we work (the four modes) | The Four Hats |
+| Who we work with | The Welcome Mat |
+| Team + where to find us | The Scribble Crew |
+
+The Community page is a normal scrolling page, not an island. Its copy is in `js/content.js` → `community`.
 Change any name in `js/content.js` (`landmark`); move a pin in `js/config.js` (`districts`).
 
 ## The coastline
@@ -70,14 +95,18 @@ to force a rebuild after editing tile images, clear the site's storage (DevTools
 
 ## Addresses (shareable links)
 
-`#/system`, `#/islands`, `#/studio`, `#/community`, `#/studio/design`, `#/studio/strategy`, `#/studio/content`,
-`#/studio/production`, `#/studio/tech`, `#/studio/work`, `#/studio/about`, `#/studio/contact`, `#/list`
+`#/system`, `#/islands`, `#/studio`, `#/about`, `#/community`, `#/studio/design`, `#/studio/strategy`, `#/studio/content`,
+`#/studio/production`, `#/studio/tech`, `#/studio/work`, `#/studio/contact`, `#/about/story`, `#/about/modes`, `#/about/who`,
+`#/about/team`, `#/list`. The old `#/studio/about` link still works (it goes to `#/about/story`).
 
 ## Before launch
 
-- Fill every `[PLACEHOLDER]` in `js/content.js` (address, email, WhatsApp, budgets, case studies, team, socials, ZESCORP line).
+- Fill every `[PLACEHOLDER]` in `js/content.js` (address, email, WhatsApp, budgets, case studies, team, socials,
+  community join link, opening hours, accelerator).
+- Community page copy is a draft written from the content doc: check it with the community team.
+  The community is called "the DOITSILLY Community"; "3rd Space" is only used as the address.
+  Until `community.joinUrl` is a real link, "Join the Community" opens the Start a project form.
 - Set `formEndpoint` in `js/config.js` to where brief submissions should go (the form currently shows the success state only).
-- Community Island content: add it to `js/content.js` and `communityPlaces` in `js/config.js`.
 - Host: upload the whole folder to any static host (Netlify, Vercel, GitHub Pages, S3, cPanel). No build step.
   `serve.py`, `start.bat` and `start.ps1` are only for previewing on your computer.
 

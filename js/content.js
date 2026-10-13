@@ -7,23 +7,31 @@ window.DIS_CONTENT = {
   signoff: "Until you DO IT SILLY.",
 
   system: {
-    zescorp: { name: "ZESCORP", line: "[ZESCORP ONE-LINER]" },
-    doitsilly: { name: "DOITSILLY", line: "Studio + Community. Click to zoom in." }
+    doitsilly: { name: "DOITSILLY", line: "Click it to pick a side." }
   },
 
-  gate: {
-    eyebrow: "Welcome to Silly Town. Messy ideas welcome.",
+  /* The chooser that opens when the planet is clicked. Drag Scribble (the pink O in the logo) onto a side. */
+  pick: {
     headline: "Pick a side.",
-    sub: "You can always take the ferry.",
-    studio: { label: "DOITSILLY Island", kicker: "The Studio · Agency", line: "Brands, built silly." },
-    community: { label: "Community Island", kicker: "3rd Space · Community", line: "Creatives, gathered." }
+    sub: "Drop Scribble on one.",
+    grab: "Drag me!",
+    nudge: "Drag Scribble onto it",
+    back: "Back to space",
+    studio: { name: "DOITSILLY", line: "The studio. Brands, built silly." },
+    community: { name: "Community", line: "Creatives, gathered." }
+  },
+
+  /* Island names on the map. */
+  gate: {
+    studio: { label: "DOITSILLY Island", line: "Brands, built silly." },
+    about: { label: "About Us Island", line: "Who we are, in four stops." }
   },
 
   hints: {
-    system: "Click DOITSILLY to zoom in. Click empty space to make a wish.",
-    islands: "Click an island to zoom in. Drag to look around.",
+    system: "Drag Scribble anywhere. Drop it on a side to go in. Click empty space to make a wish.",
+    islands: "Click the island to zoom in. Drag to look around.",
     studio: "Click a pin to go in. Click the locals to say hi.",
-    community: "Under construction. Content landing soon."
+    about: "Four stops. Start at The Pizza Party."
   },
 
   tour: [
@@ -34,8 +42,7 @@ window.DIS_CONTENT = {
     { id: "production", text: "Clapper Studios: lights, camera, pizza." },
     { id: "tech", text: "The Robot Shed: robots that do the boring bits." },
     { id: "work", text: "The Fridge Door: only the best drawings get stuck up here." },
-    { id: "about", text: "The Pizza Party: where it all started." },
-    { id: "contact", text: "The Big Red Mailbox. Ready? Drop us a letter." }
+    { id: "contact", text: "The Big Red Mailbox. Ready? Drop us a letter. (Want the backstory? Take the ferry to About Us Island.)" }
   ],
 
   places: {
@@ -92,7 +99,7 @@ window.DIS_CONTENT = {
         ["Social IP and recurring formats", "Shows, series and bits your audience comes back for."],
         ["Always-on content", "The weekly stuff, done properly."],
         ["Copywriting", "Words that sound like a person wrote them."],
-        ["Creator and community content", "Real people, real voices, from 3rd Space and beyond."],
+        ["Creator and community content", "Real people, real voices, from the DOITSILLY Community and beyond."],
         ["Social automation", "The repetitive bits, handled by systems."],
         ["PR", "Stories worth telling, told to the right people."]
       ],
@@ -161,10 +168,12 @@ window.DIS_CONTENT = {
       ],
       empty: "Nothing here yet. Which probably means we should make one. Want to be first?",
       cta: ["Your brand could be next on the fridge.", "Pop it in the post. We reply within 2 working days."],
-      next: "about"
+      next: "contact"
     },
-    about: {
-      type: "about", landmark: "The Pizza Party", plain: "About", oneliner: "Fractions are just pizza.",
+
+    /* ---- About Us Island: the About page, split into four stops ---- */
+    story: {
+      type: "story", landmark: "The Pizza Party", plain: "Our story", oneliner: "Fractions are just pizza.",
       hero: "Fractions are just pizza.",
       intro: "The whole idea behind DOITSILLY, in one slice.",
       story: [
@@ -184,7 +193,12 @@ window.DIS_CONTENT = {
           "We're not here to hand you a mood board and call it strategy. We're here to push your brand off the cliff, with a parachute made of Post-its and actual creative rigour.",
           "DOITSILLY Studio is where messy ideas become market-ready brands. We work with startups, founders, and young companies done with boring agencies, and done waiting to look like themselves."]]
       ],
-      modesHeading: "We act like four things. We are not one.",
+      next: "modes"
+    },
+    modes: {
+      type: "modes", landmark: "The Four Hats", plain: "How we work", oneliner: "Four ways to work with us. One team.",
+      hero: "We act like four things. We are not one.",
+      intro: "Pick the hat that fits the job. Swap it halfway if you need to.",
       modes: [
         ["An agency", "Strategy, design, IP and output, delivered end to end."],
         ["Consultants", "We plug into your in-house team and run what you need: social IP, content, go-to-market strategy, design, UI/UX."],
@@ -192,8 +206,12 @@ window.DIS_CONTENT = {
         ["A production house", "Script to screen. DVCs, TVCs, recurring social IP. We own the whole pipeline."]
       ],
       modesClose: "We are not an everything agency.",
-      whoHeading: "Who we work with",
-      whoIntro: "DOITSILLY isn't for every brand. We're for the ones done playing it safe.",
+      next: "who"
+    },
+    who: {
+      type: "who", landmark: "The Welcome Mat", plain: "Who we work with", oneliner: "For brands done playing it safe.",
+      hero: "Who we work with",
+      intro: "DOITSILLY isn't for every brand. We're for the ones done playing it safe.",
       who: [
         ["Brands seeking authentic engagement", "Companies that value creative partnerships over transactional sponsorships. Organisations willing to collaborate meaningfully with emerging talent."],
         ["Founders challenging convention", "Entrepreneurs who understand that memorable brands don't emerge from safe choices. Founders building companies that reflect their authentic vision, not investor-friendly templates."],
@@ -201,17 +219,22 @@ window.DIS_CONTENT = {
       ],
       whoClose: "We work with startups building sustainable fashion, founders launching mental health apps, B2B companies that want to look human.",
       personality: ["Curious", "Warm", "Playful", "Honest", "Slightly chaotic"],
-      teamHeading: "The scribbles behind the scribbles",
+      next: "team"
+    },
+    team: {
+      type: "team", landmark: "The Scribble Crew", plain: "Team", oneliner: "The scribbles behind the scribbles.",
+      hero: "The scribbles behind the scribbles",
+      intro: "A small studio with a big room behind it.",
       team: [["[Name]", "[Role]", "Thinks in pizza slices."], ["[Name]", "[Role]", "[One silly line]"], ["[Name]", "[Role]", "[One silly line]"]],
       whereHeading: "Where you'll find us",
       where: "DOITSILLY Studio operates out of 3rd Space in Indiranagar, Bangalore. Positioned at the centre of the city's creative and startup ecosystem, our physical presence signals something most agencies can't offer: a living, breathing community of emerging creative talent right behind the studio wall.",
-      next: "contact"
+      next: "story"
     },
     contact: {
       type: "contact", landmark: "The Big Red Mailbox", plain: "Start a project", oneliner: "Pop it in the post. We'll make it pop.",
       hero: "Pop it in the post. We'll make it pop.",
       intro: "Half-formed is fine. That's our favourite kind.",
-      needs: ["Design", "Strategy", "Content", "Production", "Tech", "A collab with 3rd Space", "The accelerator", "Not sure yet"],
+      needs: ["Design", "Strategy", "Content", "Production", "Tech", "A collab with the Community", "The accelerator", "Not sure yet"],
       budgets: ["[RANGE 1]", "[RANGE 2]", "[RANGE 3]", "Let's talk"],
       timelines: ["ASAP", "This month", "In 1–3 months", "No rush"],
       privacy: "We'll only use this to reply to you. No newsletters unless you ask.",
@@ -222,24 +245,53 @@ window.DIS_CONTENT = {
     }
   },
 
+  /* Community landing page (#/community). Draft copy: check it with the community team before launch.
+     The community is called "the DOITSILLY Community"; "3rd Space" only appears as the address. */
   community: {
-    soon: "Opening soon",
-    places: {
-      c1: { landmark: "Crayon Corner" },
-      c2: { landmark: "The Jam Room" },
-      c3: { landmark: "Open Mic Pier" },
-      c4: { landmark: "The Snack Shack" }
-    }
+    kicker: "DOITSILLY Community · Bangalore",
+    hero: "Creatives, gathered.",
+    intro: "The DOITSILLY Community is the room behind the studio wall. Illustrators, filmmakers, writers, musicians and developers come here to make things, show things and meet the people who'll make the next thing with them.",
+    join: "Join the Community",
+    joinUrl: "[COMMUNITY JOIN LINK]",
+    visit: "Come say hi",
+    spotsHeading: "What happens in the room",
+    spots: [
+      { name: "Crayon Corner", line: "Drawing nights, zine days and workshops. Bring a pen, leave with a page.", art: "art/cast/crayon.svg", tone: "lime" },
+      { name: "The Jam Room", line: "Small crews, short sprints. Pitch an idea on Monday, show it on Friday.", art: "art/cast/toast_dj.svg", tone: "blue" },
+      { name: "Open Mic Pier", line: "Show-and-tell, screenings and crits. Half-finished work is the point.", art: "art/cast/cam_director.svg", tone: "pink" },
+      { name: "The Snack Shack", line: "The kettle's on. Come for chai, stay for the conversation.", art: "art/cast/pizza_guy.svg", tone: "sand" }
+    ],
+    studioHeading: "Get paid to make things with the studio",
+    studioIntro: "When a DOITSILLY project needs a different hand, we ask the room first.",
+    studioRoles: [
+      ["Illustrators and type nerds", "Characters, lettering and worlds for brand identities."],
+      ["Directors, editors and motion designers", "Shoots, post and social video."],
+      ["Writers and creators", "Content that doesn't look like an agency made it."],
+      ["Developers", "Open tools for the Free Library, and the odd client build."]
+    ],
+    accelerator: ["The accelerator", "[ONE OR TWO LINES ON THE ACCELERATOR: who it's for, how long, how to apply]"],
+    whereHeading: "Find the room",
+    where: "3rd Space, [STREET ADDRESS], Indiranagar, Bangalore [PIN]. Open [DAYS AND HOURS].",
+    brandsHeading: "Are you a brand?",
+    brands: "Work with the people in this room through the studio: collabs, creator content and real voices, not sponsored posts.",
+    closing: "See you in the room."
+  },
+
+  /* The optional full experience (camera head tracking). */
+  fx: {
+    button: "View full experience",
+    loading: "Waking up the camera...",
+    on: "Lean left, right, in and out to look around.",
+    mouse: "Move your mouse to look around.",
+    privacy: "Your camera stays on this device. Nothing is recorded or sent.",
+    denied: "No camera, so your mouse moves the view instead.",
+    exit: "Exit full experience"
   },
 
   /* Things in the solar system answer when clicked. */
   space: {
     wish: "Wish #{n} made",
     sun: { name: "The Sun", lines: ["Shades on. Too bright to brainstorm without them.", "Sunscreen: SPF one thousand.", "I run on pizza energy."] },
-    moon: { name: "ZESCORP's moon", lines: ["I only show my good side.", "Round and round. Still not dizzy."] },
-    pebble: { name: "Planet Pebble", lines: ["Smallest planet. Biggest ideas.", "Fastest lap in the system. Again."] },
-    grape: { name: "Planet Grape", lines: ["Fun fact: it rains jelly here.", "Purple is a personality."] },
-    bubblegum: { name: "Planet Bubblegum", lines: ["Ring included. Free of charge.", "Pop by any time."] },
     satellite: { name: "DOITSILLY Sat", lines: ["Signal from DOITSILLY: come in, the kettle's on.", "Beep. Uploading silliness."] },
     rocket: { name: "Rocket", lines: ["Zoom zoom!", "Next stop: your brand.", "Full speed. No brakes."] },
     bot: { name: "Astro-bot", lines: ["Houston, we have an idea.", "Floating. Thinking. Same thing."] },
@@ -259,7 +311,7 @@ window.DIS_CONTENT = {
     cam_director: { name: "Director Cam", lines: ["Lights, camera, pizza!", "From the top. With feeling."] },
     clapper: { name: "Clappy", lines: ["Take 47. Still silly.", "Clap clap. That's a wrap."] },
     bulb: { name: "Bulb", lines: ["Ding! Idea.", "I switch on when someone says 'what if'."] },
-    dish_head: { name: "Dishy", lines: ["Picking up signals from 3rd Space.", "Loud and clear. Mostly clear."] },
+    dish_head: { name: "Dishy", lines: ["Picking up signals from the Community.", "Loud and clear. Mostly clear."] },
     paint_bucket: { name: "Splash", lines: ["Splash first, ask later.", "Pick a colour. Any colour. Pink."] },
     pencil_kid: { name: "Pencil Kid", lines: ["Sketch it ugly, then make it pretty.", "My eraser is my best friend."] },
     heli: { name: "Heli", lines: ["Aerial shots, anyone?", "Hovering. Waiting for the tour."] },
