@@ -43,7 +43,7 @@ window.DIS_CONFIG = {
   "grid": [["pinkwest", "toplime", "greenne", "city"], ["spiral", "mountains", "east", "eastlobe"], ["snow", "park", "beach", "forest"]],
   "about": ["city", "eastlobe", "forest"],
   "overlap": 1.18,
-  "bakeScale": 0.8
+  "bakeScale": 0.6
  },
  "clouds": [
   { "src": "art/clouds/cloud.svg", "x": 800, "y": 250, "w": 420, "dx": 300, "dur": 70 },

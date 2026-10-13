@@ -46,25 +46,30 @@
       return { s, tx: area.x + area.w / 2 - (x + w / 2) * s, ty: area.y + area.h / 2 - (y + hh / 2) * s };
     }
     set(st, clamp = true) { if (clamp) st = this.clamp({ ...st }); this.s = st.s; this.tx = st.tx; this.ty = st.ty; this.apply(); }
+    // stop a glide in progress; whoever was waiting for it carries on (never left hanging)
+    stop() { if (this.anim) { cancelAnimationFrame(this.anim.raf); const r = this.anim.res; this.anim = null; if (r) r(); } }
     to(target, ms = 900, clamp = true) {
       if (clamp) target = this.clamp({ ...target });
-      if (this.anim) cancelAnimationFrame(this.anim.raf);
+      this.stop();
       if (REDUCE || ms <= 0) { this.set(target, false); return Promise.resolve(); }
       const vw = this.vw, vh = this.vh;
       const c0 = { x: (vw / 2 - this.tx) / this.s, y: (vh / 2 - this.ty) / this.s, l: Math.log(this.s) };
       const c1 = { x: (vw / 2 - target.tx) / target.s, y: (vh / 2 - target.ty) / target.s, l: Math.log(target.s) };
       return new Promise(res => {
         const t0 = performance.now();
+        const anim = { raf: 0, res };
         const step = now => {
+          if (this.anim !== anim) return; // stopped or replaced
           const k = Math.min(1, (now - t0) / ms), e = ease(k);
           const s = Math.exp(c0.l + (c1.l - c0.l) * e), cx = c0.x + (c1.x - c0.x) * e, cy = c0.y + (c1.y - c0.y) * e;
           this.s = s; this.tx = vw / 2 - cx * s; this.ty = vh / 2 - cy * s; this.apply();
-          if (k < 1) this.anim = { raf: requestAnimationFrame(step) }; else { this.anim = null; this.set(target, false); res(); }
+          if (k < 1) anim.raf = requestAnimationFrame(step); else { this.anim = null; this.set(target, false); res(); }
         };
-        this.anim = { raf: requestAnimationFrame(step) };
+        this.anim = anim; anim.raf = requestAnimationFrame(step);
       });
     }
     zoomAt(mx, my, factor, minS, maxS) {
+      this.stop();
       const s = Math.min(maxS, Math.max(minS, this.s * factor)), k = s / this.s;
       this.set({ s, tx: mx - (mx - this.tx) * k, ty: my - (my - this.ty) * k });
     }
@@ -641,7 +646,15 @@
     ISL.revealing = true;
     await ISL.baked;
     const st = $("#world-stage");
-    const finish = () => { st.classList.remove("premorph", "breaking"); st.classList.add("broken"); ISL.morphed = true; ISL.revealing = false; updateChrome(); scheduleOverlay(); };
+    const finish = () => {
+      st.classList.remove("premorph", "breaking"); st.classList.add("broken"); ISL.morphed = true; ISL.revealing = false; updateChrome(); scheduleOverlay();
+      // the show is over: free the temporary pieces, the logo-island coast and the logo overlay
+      setTimeout(() => {
+        ISL.chunks.forEach(c => { try { URL.revokeObjectURL(c.el.src); } catch (e) {} c.el.remove(); }); ISL.chunks = [];
+        const co = $("#coast"); if (co) co.innerHTML = "";
+        const sk = $("#logo-skin"); if (sk) sk.remove();
+      }, 1200);
+    };
     if (instant || REDUCE || !ISL.chunks.length) return finish();
     await sleep(450);
     st.classList.remove("premorph");                 // 1. the logo fades into the logo island
@@ -702,6 +715,13 @@
     const K = 10, W = Math.ceil(C.world[0] / K) + 2, H = Math.ceil(C.world[1] / K) + 2, N = W * H;
     const src = $$("#world-stage .layer-src-base img.tile"), srcFg = $$("#world-stage .layer-src-fg img.tile");
     await Promise.all(src.concat(srcFg).map(im => (im.decode ? im.decode() : Promise.resolve()).catch(() => {})));
+    // districts are worked out once and remembered by the browser; later visits skip straight to step 3
+    const names = Object.keys(L.seeds);
+    const cacheKey = "dis_isl_v1_" + src.length + "_" + names.map(n => n + L.seeds[n].join(".")).join("_");
+    let DIST = null;
+    try { const c = JSON.parse(store.get(cacheKey) || "null"); if (Array.isArray(c) && c.length === names.length) DIST = c; } catch (e) {}
+    const breath = () => new Promise(r => setTimeout(r, 0)); // let the page draw a frame between heavy steps
+    if (!DIST) {
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     const g = cv.getContext("2d", { willReadFrequently: true });
     for (const im of src) g.drawImage(im, 1 + im.dataset.x / K, 1 + im.dataset.y / K, im.dataset.w / K, im.dataset.h / K);
@@ -718,26 +738,31 @@
     dropSmall(land, W, H, 1, 900); dropSmall(land, W, H, 0, 600);
 
     // 2. split it into districts round the seed points, with wobbly borders
-    const names = Object.keys(L.seeds), seeds = names.map(n => [L.seeds[n][0] / K + 1, L.seeds[n][1] / K + 1]);
+    const seeds = names.map(n => [L.seeds[n][0] / K + 1, L.seeds[n][1] / K + 1]);
     const owner = new Int8Array(N).fill(-1);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    for (let y = 0; y < H; y++) { if (y % 48 === 0) await breath(); for (let x = 0; x < W; x++) {
       const i = y * W + x; if (!land[i]) continue;
       const X = x + 11 * vnoise(x / 20, y / 20 + 3) + 3 * vnoise(x / 6 + 5, y / 6);
       const Y = y + 11 * vnoise(x / 20 + 7, y / 20) + 3 * vnoise(x / 6, y / 6 + 11);
       let best = 1e9, bi = 0;
       for (let k = 0; k < seeds.length; k++) { const d = (X - seeds[k][0]) ** 2 + (Y - seeds[k][1]) ** 2; if (d < best) { best = d; bi = k; } }
       owner[i] = bi;
-    }
+    } }
     const nearestSeed = (wx, wy) => { let best = 1e9, bi = 0; seeds.forEach((s, k) => { const d = (wx / K + 1 - s[0]) ** 2 + (wy / K + 1 - s[1]) ** 2; if (d < best) { best = d; bi = k; } }); return bi; };
     const ownerAt = (wx, wy) => { const x = Math.round(wx / K + 1), y = Math.round(wy / K + 1); const o = x >= 0 && y >= 0 && x < W && y < H ? owner[y * W + x] : -1; return o >= 0 ? o : nearestSeed(wx, wy); };
-    const DIST = names.map((n, k) => {
+    DIST = [];
+    for (let k = 0; k < names.length; k++) {
+      const n = names[k];
+      if (k % 3 === 0) await breath();
       let m = new Uint8Array(N); for (let i = 0; i < N; i++) m[i] = owner[i] === k ? 1 : 0;
       m = largestPiece(m, W, H);
       let x0 = W, y0 = H, x1 = 0, y1 = 0;
       for (let i = 0; i < N; i++) if (m[i]) { const x = i % W, y = (i / W) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
       const f = new Float32Array(N); for (let i = 0; i < N; i++) f[i] = m[i] ? -1 : 1;
-      return { name: n, d: pathFrom(contours(f, W, H), K, 20), box: [(x0 - 1) * K, (y0 - 1) * K, (x1 - x0 + 1) * K, (y1 - y0 + 1) * K] };
-    });
+      DIST.push({ name: n, d: pathFrom(contours(f, W, H), K, 20), box: [(x0 - 1) * K, (y0 - 1) * K, (x1 - x0 + 1) * K, (y1 - y0 + 1) * K] });
+    }
+    if (px) store.set(cacheKey, JSON.stringify(DIST));
+    }
 
     // 3. lay them out inside the logo, one per grid cell, scaled to fill it
     const rows = L.grid.length, cols = L.grid[0].length, cw = IW / cols, ch = IH / rows;
@@ -1049,7 +1074,17 @@
   /* ---------------- routing ---------------- */
   function setHash(hs) { if (location.hash !== hs) history.replaceState(null, "", hs); }
   function go(hs) { if (location.hash === hs) route(); else location.hash = hs; }
+  // one move at a time: a click that arrives mid-move waits, then the latest address wins
+  let routeBusy = false, routeAgain = false;
   async function route() {
+    if (routeBusy) { routeAgain = true; return; }
+    routeBusy = true;
+    try { await routeOnce(); }
+    catch (e) { console.error("Route:", e); S.transitioning = false; S.busy = false; document.body.classList.remove("zooming"); }
+    finally { routeBusy = false; S.routing = false; }
+    if (routeAgain) { routeAgain = false; route(); }
+  }
+  async function routeOnce() {
     if (location.hash === "#/studio/about") history.replaceState(null, "", "#/about/story"); // old address
     const parts = (location.hash || "#/").replace(/^#\/?/, "").split("/").filter(Boolean);
     S.routing = true; hideSay();
@@ -1222,7 +1257,7 @@
       if (pinch && ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y); world.zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, (pinch.s * d / pinch.d) / world.s, fitS * .8, C.maxScale); return; }
       if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       if (!drag.moved && Math.hypot(dx, dy) < 5) return; drag.moved = true; view.classList.add("grabbing");
-      if (world.anim) { cancelAnimationFrame(world.anim.raf); world.anim = null; }
+      world.stop();
       world.set({ s: world.s, tx: drag.tx + dx, ty: drag.ty + dy });
     });
     const up = e => {
