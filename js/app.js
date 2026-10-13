@@ -862,7 +862,7 @@
     if (!FX.on) return;
     FX.raf = requestAnimationFrame(fxLoop);
     const v = $("#fx-video");
-    if (FX.mode === "camera" && FX.lm && v.readyState >= 2 && v.currentTime !== FX.lastT && now - (FX.lastDetect || 0) > 30) {
+    if (FX.mode === "camera" && FX.lm && v.readyState >= 2 && v.currentTime !== FX.lastT && now - (FX.lastDetect || 0) > 45) {
       FX.lastT = v.currentTime; FX.lastDetect = now;
       let res = null; try { res = FX.lm.detectForVideo(v, performance.now()); } catch (e) {}
       const lm = res && res.faceLandmarks && res.faceLandmarks[0];
@@ -889,13 +889,15 @@
     cancelAnimationFrame(FX.raf); FX.raf = requestAnimationFrame(fxLoop);
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("no camera API");
-      FX.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+      FX.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 30, max: 30 } }, audio: false });
       if (!FX.on) return stopStream();
       const v = $("#fx-video"); v.srcObject = FX.stream; await v.play().catch(() => {});
       if (!FX.lm) {
         const vision = await import(MP + "/vision_bundle.mjs");
         const files = await vision.FilesetResolver.forVisionTasks(MP + "/wasm");
-        FX.lm = await vision.FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: "GPU" }, runningMode: "VIDEO", numFaces: 1 });
+        // CPU, not GPU: on the GPU the tracker competes with the browser for graphics memory and big parts of the map
+        // stop being drawn. A small video on the CPU is plenty for one face.
+        FX.lm = await vision.FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: "CPU" }, runningMode: "VIDEO", numFaces: 1 });
       }
       if (!FX.on) return stopStream();
       FX.mode = "camera"; panel.classList.add("cam");
