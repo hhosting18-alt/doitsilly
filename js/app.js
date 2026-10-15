@@ -831,6 +831,66 @@
   const FX = { on: false, mode: null, ox: .5, oy: .5, p: 1100, tox: .5, toy: .5, tp: 1100, base: 0, frames: 0, stream: null, lm: null, raf: 0, lastT: -1 };
   const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
   const FACE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+  /* The face tracker runs in a background worker, so it never holds up drawing (on the main thread each detection froze
+     the page for 10-30 ms, many times a second: the stutter). The page sends it a snapshot of the camera, it sends back
+     where the eyes are. If a worker can't be used, the tracker runs on the page as before, just less often. */
+  const FX_WORKER_SRC = `let lm = null;
+  onmessage = async e => {
+    const m = e.data;
+    if (m.type === "init") {
+      try {
+        const vision = await import(m.mp + "/vision_bundle.mjs");
+        const files = await vision.FilesetResolver.forVisionTasks(m.mp + "/wasm");
+        lm = await vision.FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: m.model, delegate: "CPU" }, runningMode: "VIDEO", numFaces: 1 });
+        postMessage({ type: "ready" });
+      } catch (err) { postMessage({ type: "error", msg: String((err && err.message) || err) }); }
+    } else if (m.type === "frame") {
+      let p = null;
+      try { const r = lm && lm.detectForVideo(m.bmp, m.t); const f = r && r.faceLandmarks && r.faceLandmarks[0]; if (f && f[468] && f[473]) p = [f[468].x, f[468].y, f[473].x, f[473].y]; } catch (err) {}
+      try { m.bmp.close(); } catch (err) {}
+      postMessage({ type: "res", p });
+    }
+  };`;
+  function fxWorker() {
+    return new Promise(res => {
+      if (FX.wk && FX.wkReady) return res(true);
+      if (FX.wkFailed || !window.Worker || !window.createImageBitmap) return res(false);
+      let w, url;
+      try { url = URL.createObjectURL(new Blob([FX_WORKER_SRC], { type: "text/javascript" })); w = new Worker(url); }
+      catch (e) { FX.wkFailed = true; return res(false); }
+      let settled = false;
+      const fail = (why) => {
+        const wasReady = FX.wkReady;
+        FX.wkFailed = true; FX.wkReady = false; FX.wkBusy = false; clearTimeout(t);
+        try { w.terminate(); } catch (e) {} if (FX.wk === w) FX.wk = null;
+        if (why) console.warn("Full experience: background tracker unavailable, tracking on the page instead.", why);
+        if (!settled) { settled = true; res(false); }
+        else if (wasReady && FX.on && !FX.lm) loadMainLM().catch(() => {}); // it broke mid-way: carry on without it
+      };
+      const t = setTimeout(() => fail("timed out"), 25000);
+      w.onerror = e => { e.preventDefault && e.preventDefault(); fail(e.message || "worker error"); };
+      w.onmessage = e => {
+        const m = e.data || {};
+        if (m.type === "ready") { clearTimeout(t); FX.wkReady = true; try { URL.revokeObjectURL(url); } catch (err) {} if (!settled) { settled = true; res(true); } }
+        else if (m.type === "error") fail(m.msg);
+        else if (m.type === "res") { FX.wkBusy = false; if (m.p && FX.on) fxFace(m.p); }
+      };
+      FX.wk = w; w.postMessage({ type: "init", mp: MP, model: FACE_MODEL });
+    });
+  }
+  async function loadMainLM() {
+    if (FX.lm) return;
+    const vision = await import(MP + "/vision_bundle.mjs");
+    const files = await vision.FilesetResolver.forVisionTasks(MP + "/wasm");
+    // CPU, not GPU: on the GPU the tracker competes with the browser for graphics memory and big parts of the map
+    // stop being drawn. A small video on the CPU is plenty for one face.
+    FX.lm = await vision.FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: "CPU" }, runningMode: "VIDEO", numFaces: 1 });
+  }
+  function fxFace(p) { // p: the two iris centres [x1, y1, x2, y2], 0..1 across the camera image
+    const mx = (p[0] + p[2]) / 2, my = (p[1] + p[3]) / 2, dist = Math.hypot(p[0] - p[2], p[1] - p[3]);
+    if (FX.frames < 30) { FX.base = FX.base ? FX.base * .9 + dist * .1 : dist; FX.frames++; } // learn the resting distance
+    fxTarget((.5 - mx) * 2.4, (my - .5) * 2.4, FX.base ? (dist - FX.base) / FX.base * 2.2 : 0);
+  }
   function fxProject(p, z) { // a point drawn at height z above the map, as seen from the moved viewpoint
     const ox = FX.ox * innerWidth, oy = FX.oy * innerHeight, f = FX.p / (FX.p - z);
     p.x = ox + (p.x - ox) * f; p.y = oy + (p.y - oy) * f;
@@ -872,15 +932,21 @@
     if (!FX.on) return;
     FX.raf = requestAnimationFrame(fxLoop);
     const v = $("#fx-video");
-    if (FX.mode === "camera" && FX.lm && v.readyState >= 2 && v.currentTime !== FX.lastT && now - (FX.lastDetect || 0) > 45) {
-      FX.lastT = v.currentTime; FX.lastDetect = now;
-      let res = null; try { res = FX.lm.detectForVideo(v, performance.now()); } catch (e) {}
-      const lm = res && res.faceLandmarks && res.faceLandmarks[0];
-      if (lm && lm[468] && lm[473]) {
-        const mx = (lm[468].x + lm[473].x) / 2, my = (lm[468].y + lm[473].y) / 2;
-        const dist = Math.hypot(lm[468].x - lm[473].x, lm[468].y - lm[473].y);
-        if (FX.frames < 30) { FX.base = FX.base ? FX.base * .9 + dist * .1 : dist; FX.frames++; } // learn the resting distance
-        fxTarget((.5 - mx) * 2.4, (my - .5) * 2.4, FX.base ? (dist - FX.base) / FX.base * 2.2 : 0);
+    if (FX.mode === "camera" && v.readyState >= 2 && v.currentTime !== FX.lastT) {
+      if (FX.wk && FX.wkReady) { // background tracker: send it a snapshot whenever it's free (about 30 a second)
+        if (!FX.wkBusy && now - (FX.lastDetect || 0) > 30) {
+          FX.wkBusy = true; FX.lastT = v.currentTime; FX.lastDetect = now;
+          const w = FX.wk;
+          createImageBitmap(v).then(bmp => {
+            if (!FX.on || FX.wk !== w) { bmp.close(); FX.wkBusy = false; return; }
+            w.postMessage({ type: "frame", bmp, t: performance.now() }, [bmp]);
+          }).catch(() => { FX.wkBusy = false; });
+        }
+      } else if (FX.lm && now - (FX.lastDetect || 0) > 66) { // on the page: less often, so drawing gets most frames
+        FX.lastT = v.currentTime; FX.lastDetect = now;
+        let res = null; try { res = FX.lm.detectForVideo(v, performance.now()); } catch (e) {}
+        const lm = res && res.faceLandmarks && res.faceLandmarks[0];
+        if (lm && lm[468] && lm[473]) fxFace([lm[468].x, lm[468].y, lm[473].x, lm[473].y]);
       }
     }
     fxApply(now);
@@ -903,13 +969,9 @@
       FX.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 30, max: 30 } }, audio: false });
       if (!FX.on) return stopStream();
       const v = $("#fx-video"); v.srcObject = FX.stream; await v.play().catch(() => {});
-      if (!FX.lm) {
-        const vision = await import(MP + "/vision_bundle.mjs");
-        const files = await vision.FilesetResolver.forVisionTasks(MP + "/wasm");
-        // CPU, not GPU: on the GPU the tracker competes with the browser for graphics memory and big parts of the map
-        // stop being drawn. A small video on the CPU is plenty for one face.
-        FX.lm = await vision.FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: "CPU" }, runningMode: "VIDEO", numFaces: 1 });
-      }
+      // the tracker: in a background worker if possible, otherwise on the page
+      const inWorker = await fxWorker();
+      if (!inWorker && FX.on) await loadMainLM();
       if (!FX.on) return stopStream();
       FX.mode = "camera"; panel.classList.add("cam");
       $("#fx-title").textContent = T.fx.on;
@@ -924,7 +986,7 @@
   function stopStream() { if (FX.stream) { FX.stream.getTracks().forEach(t => t.stop()); FX.stream = null; } const v = $("#fx-video"); if (v) v.srcObject = null; }
   function stopFX() {
     if (!FX.on) return;
-    FX.on = false; FX.mode = null; cancelAnimationFrame(FX.raf); stopStream();
+    FX.on = false; FX.mode = null; FX.wkBusy = false; cancelAnimationFrame(FX.raf); stopStream();
     document.body.classList.remove("fx");
     FX.lastKey = ""; FX.lastFrame = 0;
     if (DEPTH && DEPTH.fx) DEPTH.fx(false); // back to the normal shallow box

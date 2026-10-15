@@ -22,7 +22,8 @@ window.DIS_DEPTH = (() => {
     clouds: .25,   // clouds float this fraction of the way from the map up to the glass... (0 = on the map, 1 = on the glass)
     thick: 320,    // island thickness in map pixels (the cliff sides)
     maxThick: .06, // ...capped at this fraction of the viewing distance when zoomed right in
-    slices: 6,     // how many layers draw the cliff sides
+    slices: 4,     // how many layers draw the cliff sides (each one is a full redraw of the coastline, so keep it low)
+    adapt: true,   // if frames get slow, quietly drop the extras (shadow, lean, then cliff layers + tile lines) to stay smooth
     lean: .6,      // how strongly the locals stand up off the map
     tilt: .42,     // the model look: how much of the islands' south cliff face always shows, as if seen from slightly in front
     tiltX: .1,     // ...and a little of the east face (negative = west)
@@ -46,6 +47,24 @@ window.DIS_DEPTH = (() => {
 
     const E = { hx: 0, hy: 0, lean: 0, thx: 0, thy: 0, tl: 0, dm: 0, tdm: 0 }; // eye: now and target (-1..1 across the screen); dm: 0 = normal box, 1 = deep full-experience box
     let G = null, raf = 0, last = 0, box = null, wallKey = "", cliff = [], shade = null;
+    let lastBeach = null, leanState = null; const varCache = {};
+    // smoothness guard: watches frame times while things move; if they're slow it steps quality down (never back up
+    // in the same visit, so nothing flickers). 0 = everything, 1 = no shadow / lean, 2 = fewer cliff layers, no tile lines,
+    // 3 = the mouse stops tilting the view (head tracking still works)
+    const Q = { level: 0, n: 0, sum: 0, lastT: 0 };
+    function perf(now) {
+      if (!cfg.adapt || Q.level >= 3) return;
+      if (Q.lastT) { const d = now - Q.lastT; if (d > 0 && d < 250) { Q.sum += d; Q.n++; } }
+      Q.lastT = now;
+      if (Q.n >= 45) { const avg = Q.sum / Q.n; Q.sum = Q.n = 0; if (avg > 23) degrade(++Q.level, avg); }
+    }
+    function degrade(level, avg) {
+      console.info(`Depth: frames were slow (${avg.toFixed(0)} ms), using lighter quality level ${level}.`);
+      if (level >= 1 && shade) { shade.remove(); shade = null; }
+      if (level >= 2) { wallKey = ""; if (lastBeach) coast(lastBeach); }
+      if (level >= 3) { cfg.mouse = 0; if (!o.isFx()) aim(0, 0, 0); }
+      cam();
+    }
 
     function geom() {
       const W = view.clientWidth || innerWidth, H = view.clientHeight || innerHeight, P0 = 1.5 * Math.max(W, H);
@@ -82,12 +101,16 @@ window.DIS_DEPTH = (() => {
       deep.style.transform = `translate(${(e.x * (1 - kF)).toFixed(2)}px,${(e.y * (1 - kF)).toFixed(2)}px) scale(${kF.toFixed(5)})`;
       dots.style.transform = `translate(${mod(world.tx).toFixed(1)}px,${mod(world.ty).toFixed(1)}px)`;
       if (clouds) clouds.style.transform = tf(local(e, G.Dc));
-      // the locals: each one leans away from the eye in proportion to its height, like something standing up
-      if (sprites && canLean) {
+      // the locals: each one leans away from the eye in proportion to its height, like something standing up.
+      // This restyles every local, so it's only on when they're big enough to see it (zoomed in) and quality allows.
+      const leanOn = !!sprites && canLean && Q.level < 1 && s * kA > .3;
+      if (leanOn !== leanState) { leanState = leanOn; document.body.classList.toggle("d3-nolean", !leanOn); }
+      if (leanOn) {
         const g = s * kA * cfg.lean / (e.P + G.Da);
-        sprites.style.setProperty("--ex", (((e.x - world.ox) / kA - world.tx) / s).toFixed(1));
-        sprites.style.setProperty("--ey", (((e.y - world.oy) / kA - world.ty) / s).toFixed(1));
-        sprites.style.setProperty("--g", g.toExponential(4));
+        const set = (k, v) => { if (varCache[k] !== v) { varCache[k] = v; sprites.style.setProperty(k, v); } };
+        set("--ex", (((e.x - world.ox) / kA - world.tx) / s).toFixed(0));
+        set("--ey", (((e.y - world.oy) / kA - world.ty) / s).toFixed(0));
+        set("--g", g.toExponential(3));
       }
       // the cliff sides: the beach outline repeated a little deeper each time. On top of the true perspective, each layer
       // is also nudged down (and a touch sideways) so the islands always read as solid models with a visible cliff face,
@@ -97,7 +120,7 @@ window.DIS_DEPTH = (() => {
         const T = Math.min(cfg.thick * s * kA, G.P0 * cfg.maxThick), n = cliff.length;
         const drop = Math.min(cfg.thick, G.H * cfg.maxDrop / (s * kA)); // in map px
         const dx = drop * clamp(cfg.tiltX + E.hx * cfg.head, -.9, .9), dy = drop * clamp(cfg.tilt + E.hy * cfg.head, -.15, .95);
-        const put = (u, p, f) => u.setAttribute("transform", `matrix(${p.r.toFixed(5)} 0 0 ${p.r.toFixed(5)} ${(p.x + dx * f).toFixed(2)} ${(p.y + dy * f).toFixed(2)})`);
+        const put = (u, p, f) => { const t = `matrix(${p.r.toFixed(5)} 0 0 ${p.r.toFixed(5)} ${(p.x + dx * f).toFixed(1)} ${(p.y + dy * f).toFixed(1)})`; if (u._t !== t) { u._t = t; u.setAttribute("transform", t); } };
         cliff.forEach((u, i) => { const f = (n - i) / n; put(u, local(e, G.Da + T * f), f); });
         if (shade) put(shade, local(e, G.Da + T), 1.45);
       }
@@ -138,7 +161,7 @@ window.DIS_DEPTH = (() => {
       const rings = cfg.grid ? [1, 2, 3, 4, 5, 6].map(i => i / 7) : [.34, .67];
       box.querySelector(".bx-ring").setAttribute("d", rings.map(t => rect(at(e.P / (e.P + G.Da * t)))).join(""));
       let gd = "";
-      if (cfg.grid) {
+      if (cfg.grid && Q.level < 2) {
         const N = 12, M = 7, bx = u => e.x * (1 - kA) + u * kA, by = v => e.y * (1 - kA) + v * kA;
         for (let i = 1; i < N; i++) { const u = W * i / N; gd += `M${f(u)},0L${f(bx(u))},${f(y0)}M${f(u)},${H}L${f(bx(u))},${f(y1)}`; }
         for (let i = 1; i < M; i++) { const v = H * i / M; gd += `M0,${f(v)}L${f(x0)},${f(by(v))}M${W},${f(v)}L${f(x1)},${f(by(v))}`; }
@@ -153,27 +176,29 @@ window.DIS_DEPTH = (() => {
     function coast(beachD) {
       const svg = $("#coast-old"), top = svg && svg.querySelector(".c-beach");
       if (!svg || !top || !beachD) return;
+      lastBeach = beachD;
       ["#d3-cliff", "#d3-shadow"].forEach(s => { const old = svg.querySelector(s); if (old) old.remove(); });
       let defs = svg.querySelector("defs"); if (!defs) { defs = document.createElementNS(NS, "defs"); svg.prepend(defs); }
       let shape = defs.querySelector("#d3-cliff-shape");
       if (!shape) { shape = document.createElementNS(NS, "path"); shape.id = "d3-cliff-shape"; shape.setAttribute("fill-rule", "evenodd"); defs.appendChild(shape); }
       shape.setAttribute("d", beachD);
       const g = document.createElementNS(NS, "g"); g.id = "d3-cliff";
-      const n = Math.max(2, Math.round(cfg.slices)), mix = (a, b, t) => Math.round(a + (b - a) * t);
+      const n = Math.max(2, Math.round(Q.level >= 2 ? Math.min(3, cfg.slices) : cfg.slices)), mix = (a, b, t) => Math.round(a + (b - a) * t);
       cliff = [];
-      for (let i = 0; i < n; i++) { // deepest first; earthy brown at the bottom, sandy near the top, a strata line on each
+      // deepest first; earthy brown at the bottom, sandy near the top. Plain fills only (an outline stroke on a path
+      // this big is far more expensive to draw than the fill), except the ink line round the very bottom.
+      for (let i = 0; i < n; i++) {
         const t = i / (n - 1), u = document.createElementNS(NS, "use");
         u.setAttribute("href", "#d3-cliff-shape");
-        u.setAttribute("style", i === 0 ? "fill:#7A4A22;stroke:#111;stroke-width:9;stroke-linejoin:round"
-          : `fill:rgb(${mix(170, 232, t)},${mix(110, 178, t)},${mix(56, 118, t)});stroke:rgb(${mix(122, 176, t)},${mix(76, 118, t)},${mix(36, 66, t)});stroke-width:3;stroke-linejoin:round`);
+        u.setAttribute("style", i === 0 ? "fill:#7A4A22;stroke:#111;stroke-width:9;stroke-linejoin:round" : `fill:rgb(${mix(150, 226, t)},${mix(96, 170, t)},${mix(48, 112, t)})`);
         g.appendChild(u); cliff.push(u);
       }
-      // the shadow the islands cast on the shallow water, a soft dark copy of the outline sitting under the cliffs
+      // the shadow the islands cast on the shallow water: one dark copy of the outline under the cliffs
       shade = null;
-      if (cfg.shadow > 0) {
-        const sg = document.createElementNS(NS, "g"); sg.id = "d3-shadow";
-        sg.setAttribute("style", `opacity:${clamp(cfg.shadow, 0, 1)}`);
-        sg.innerHTML = `<use href="#d3-cliff-shape" style="fill:#022A63;stroke:#022A63;stroke-width:260;stroke-linejoin:round;opacity:.45"/><use href="#d3-cliff-shape" style="fill:#022A63;stroke:#022A63;stroke-width:90;stroke-linejoin:round"/>`;
+      if (cfg.shadow > 0 && Q.level < 1) {
+        const sg = document.createElementNS(NS, "use"); sg.id = "d3-shadow";
+        sg.setAttribute("href", "#d3-cliff-shape");
+        sg.setAttribute("style", `fill:#022A63;opacity:${clamp(cfg.shadow, 0, 1)}`);
         svg.insertBefore(sg, top); shade = sg;
       }
       svg.insertBefore(g, top);
@@ -182,14 +207,14 @@ window.DIS_DEPTH = (() => {
 
     /* ---- the eye ---- */
     function settle(now) { // eases the eye toward its target (the mouse's, or back to the middle)
-      raf = 0;
+      raf = 0; perf(now);
       const dt = last ? Math.min(.1, (now - last) / 1000) : 1 / 60; last = now;
       const k = 1 - Math.exp(-dt * 6);
       E.hx += (E.thx - E.hx) * k; E.hy += (E.thy - E.hy) * k; E.lean += (E.tl - E.lean) * k; E.dm += (E.tdm - E.dm) * k;
       const done = Math.abs(E.thx - E.hx) + Math.abs(E.thy - E.hy) + Math.abs(E.tl - E.lean) + Math.abs(E.tdm - E.dm) < .0015;
       if (done) { E.hx = E.thx; E.hy = E.thy; E.lean = E.tl; E.dm = E.tdm; }
       sync();
-      if (!done) raf = requestAnimationFrame(settle); else last = 0;
+      if (!done) raf = requestAnimationFrame(settle); else { last = 0; Q.lastT = 0; }
     }
     function aim(hx, hy, lean) { E.thx = hx; E.thy = hy; E.tl = lean; if (!raf) raf = requestAnimationFrame(settle); }
     function mouse(e) {
@@ -225,7 +250,7 @@ window.DIS_DEPTH = (() => {
           if (Math.abs(ox - world.ox) > .3 || Math.abs(oy - world.oy) > .3) { world.ox = ox; world.oy = oy; world.apply(); }
           return;
         }
-        cancelAnimationFrame(raf); raf = 0; last = 0;
+        cancelAnimationFrame(raf); raf = 0; last = 0; perf(performance.now());
         let dm = E.dm + (E.tdm - E.dm) * .07; if (Math.abs(E.tdm - dm) < .002) dm = E.tdm; // the box deepens over ~half a second
         const moved = Math.abs(hx - E.hx) + Math.abs(hy - E.hy) + Math.abs(lean - E.lean) + Math.abs(dm - E.dm) > .0008;
         E.hx = E.thx = hx; E.hy = E.thy = hy; E.lean = E.tl = lean; E.dm = dm;
@@ -247,7 +272,6 @@ window.DIS_DEPTH = (() => {
       try {
         geom(); buildBox();
         document.body.classList.add("d3");
-        if (!canLean) document.body.classList.add("d3-nolean");
         window.addEventListener("pointermove", safe(mouse), { passive: true });
         document.documentElement.addEventListener("mouseleave", () => { if (!dead && !o.isFx()) aim(0, 0, 0); });
         sync();

@@ -409,7 +409,7 @@ body.fx #box .bx-grid{opacity:.14}
 #box .bx-ao2{stroke-width:8;opacity:.16}
 #box .bx-back{fill:none;stroke:#111;stroke-width:3;stroke-linejoin:round}
 /* the sea floor sits deeper than the map: it's scaled about the eye, so it needs extra dots round the edges */
-body.d3 #sea-deep{transform-origin:0 0}
+body.d3 #sea-deep{transform-origin:0 0;will-change:transform}
 body.d3 #sea-dots{inset:-45%;background-image:radial-gradient(circle,#05489A 2.1px,transparent 2.6px)}
 /* clouds float between the map and the glass */
 .layer-clouds{z-index:3}
