@@ -393,3 +393,22 @@ body.on-page :is(.trail,.zoom,.hint,.tour-start,#labels,.hi,.say,.pop,.tour){dis
   .c-split{gap:24px}
   .c-foot{width:calc(100% - 36px)}
 }
+
+/* ---------- depth: the islands as a 3D diorama seen through the screen (js/depth.js) ---------- */
+/* the box: walls from the screen's edges back to the map; drawn above the map, below labels and buttons */
+#box{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;overflow:visible}
+#box .bx-w{stroke:none}
+#box .bx-ring{fill:none;stroke:#fff;stroke-width:1.5;stroke-dasharray:10 9;opacity:.18}
+#box .bx-seam{fill:none;stroke:#04306B;stroke-width:2;opacity:.7}
+#box .bx-ao{fill:none;stroke:#00122E}
+#box .bx-ao1{stroke-width:22;opacity:.12}
+#box .bx-ao2{stroke-width:8;opacity:.16}
+#box .bx-back{fill:none;stroke:#111;stroke-width:3;stroke-linejoin:round}
+/* the sea floor sits deeper than the map: it's scaled about the eye, so it needs extra dots round the edges */
+body.d3 #sea-deep{transform-origin:0 0}
+body.d3 #sea-dots{inset:-45%;background-image:radial-gradient(circle,#05489A 2.1px,transparent 2.6px)}
+/* clouds float between the map and the glass */
+.layer-clouds{z-index:3}
+body.d3 .layer-clouds{transform-origin:0 0}
+/* the locals stand up off the map: each leans away from the eye in proportion to its height (vars set in depth.js) */
+body.d3:not(.d3-nolean) #sprites .cast{transform:skewX(calc(clamp(-.3, (var(--ex) - var(--x)) * var(--g), .3) * 1rad)) scaleY(clamp(.8, 1 + (var(--ey) - var(--y)) * var(--g), 1.2))}

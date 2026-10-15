@@ -25,11 +25,12 @@
 
   /* ---------------- camera ---------------- */
   class Cam {
-    constructor(view, stage, W, H, onChange) { Object.assign(this, { view, stage, W, H, onChange, s: 1, tx: 0, ty: 0, ox: 0, oy: 0, anim: null }); }
+    constructor(view, stage, W, H, onChange) { Object.assign(this, { view, stage, W, H, onChange, s: 1, tx: 0, ty: 0, ox: 0, oy: 0, om: 1, anim: null }); }
     get vw() { return this.view.clientWidth; } get vh() { return this.view.clientHeight; }
     // A plain 2D transform: the browser always draws the whole map. (Forcing the 9800 x 5400 map onto one GPU layer made
-    // browsers draw it in strips, so parts showed up blank while it moved.) ox/oy: the full experience's lean offset.
-    apply() { this.stage.style.transform = `translate(${(this.tx + this.ox).toFixed(2)}px,${(this.ty + this.oy).toFixed(2)}px) scale(${this.s})`; this.onChange && this.onChange(); }
+    // browsers draw it in strips, so parts showed up blank while it moved.) ox/oy/om: where the eye is (js/depth.js and
+    // the full experience) moves and scales the map plane on screen; tx/ty/s are the camera itself.
+    apply() { this.stage.style.transform = `translate(${(this.tx * this.om + this.ox).toFixed(2)}px,${(this.ty * this.om + this.oy).toFixed(2)}px) scale(${this.s * this.om})`; this.onChange && this.onChange(); }
     clamp(st) {
       const { W, H } = this, vw = this.vw, vh = this.vh;
       st.tx = W * st.s >= vw ? Math.min(0, Math.max(vw - W * st.s, st.tx)) : (vw - W * st.s) / 2;
@@ -37,6 +38,8 @@
       return st;
     }
     fit([x, y, w, hh], pad = .08, area) {
+      // an area given in screen px (e.g. beside the panel) is converted to the camera's own space first
+      if (area && this.om !== 1) area = { x: (area.x - this.ox) / this.om, y: (area.y - this.oy) / this.om, w: area.w / this.om, h: area.h / this.om };
       area = area || { x: 0, y: 0, w: this.vw, h: this.vh };
       const s = Math.min(area.w / w, area.h / hh) * (1 - pad);
       return { s, tx: area.x + area.w / 2 - (x + w / 2) * s, ty: area.y + area.h / 2 - (y + hh / 2) * s };
@@ -66,16 +69,18 @@
     }
     zoomAt(mx, my, factor, minS, maxS) {
       this.stop();
+      mx = (mx - this.ox) / this.om; my = (my - this.oy) / this.om; // screen px -> the camera's own space
       const s = Math.min(maxS, Math.max(minS, this.s * factor)), k = s / this.s;
       this.set({ s, tx: mx - (mx - this.tx) * k, ty: my - (my - this.ty) * k });
     }
-    toWorld(mx, my) { return { x: (mx - this.tx - this.ox) / this.s, y: (my - this.ty - this.oy) / this.s }; }
-    project(x, y) { return { x: x * this.s + this.tx + this.ox, y: y * this.s + this.ty + this.oy }; }
+    toWorld(mx, my) { return { x: ((mx - this.ox) / this.om - this.tx) / this.s, y: ((my - this.oy) / this.om - this.ty) / this.s }; }
+    project(x, y) { return { x: (x * this.s + this.tx) * this.om + this.ox, y: (y * this.s + this.ty) * this.om + this.oy }; }
   }
 
   /* ---------------- state ---------------- */
   const S = { scene: "space", place: null, level: "system", busy: false, tour: -1, outPressure: 0, menuOpen: false, say: null, page: null };
   let space, world, fitS = 1;
+  let DEPTH = null; // js/depth.js: the islands as a 3D diorama (null if that file is missing: the map stays flat)
 
   /* ---------------- speech bubble (shared by space and islands) ---------------- */
   function say(text, wx, wy, opts = {}) {
@@ -422,7 +427,7 @@
       <div class="layer layer-src layer-src-base" aria-hidden="true">${M.tiles.filter(t => t.layer === "base").map(tile).join("")}</div>
       <div class="layer layer-base" id="chunks"></div><div class="layer layer-sprites" id="sprites"></div>
       <div class="layer layer-src layer-src-fg" aria-hidden="true">${M.tiles.filter(t => t.layer === "fg").map(tile).join("")}</div>
-      <div class="layer layer-top" id="sprites-top"></div><div class="layer layer-skin"><img id="logo-skin" src="art/logo-island.svg" alt="" draggable="false"></div>`;
+      <div class="layer layer-top" id="sprites-top"></div><div class="layer layer-clouds" id="clouds"></div><div class="layer layer-skin"><img id="logo-skin" src="art/logo-island.svg" alt="" draggable="false"></div>`;
     st.classList.add("premorph");
     const low = $("#sprites"), top = $("#sprites-top"), kept = [];
     CAST.length = 0;
@@ -431,14 +436,14 @@
       if (kept.some(k => k.n === c.n && Math.hypot(k.x - c.x, k.y - c.y) < 40)) return; // drop stacked duplicates
       kept.push(c);
       const el = h("div", { class: "pc-sprite cast", "data-n": c.n, title: (T.locals[c.n] || T.locals._default).name }, `<img alt="" src="${c.src}" draggable="false">`);
-      el.style.cssText = `left:${c.x}px;top:${c.y}px;width:${c.w}px`;
+      el.style.cssText = `left:${c.x}px;top:${c.y}px;width:${c.w}px;--x:${c.x + c.w / 2};--y:${c.y + c.w}`; // --x/--y: where its feet are (depth.js)
       low.appendChild(el); CAST.push({ c, el });
     });
     TYPES = [...new Set(CAST.map(o => o.c.n))];
     C.clouds.forEach((cl, i) => {
       const el = h("div", { class: "pc-sprite drift cloud" }, `<img alt="" src="${cl.src}" draggable="false">`);
       el.style.cssText = `left:${cl.x}px;top:${cl.y}px;width:${cl.w}px;--dx:${cl.dx}px;--dur:${cl.dur}s;animation-delay:${-i * 7}s`;
-      top.appendChild(el);
+      $("#clouds").appendChild(el); // their own layer, so they can float above the map
     });
     if (C.ferry) {
       const f = h("div", { class: "pc-sprite ferry", id: "ferry", title: T.ferry.name }, `<img alt="" src="${C.ferry.art}" draggable="false">`);
@@ -594,6 +599,7 @@
   function applyCoast(d) {
     $("#coast-old").innerHTML = `<defs><clipPath id="dis-art-clip" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="${d.clip}"/></clipPath></defs>
       <path class="c-halo" fill-rule="evenodd" d="${d.halo}"/><path class="c-foam" d="${d.foam}"/><path class="c-beach" fill-rule="evenodd" d="${d.beach}"/>`;
+    if (DEPTH) DEPTH.coast(d.beach); // the islands' cliff sides
     $("#world-stage").classList.add("clipped");
     setTimeout(() => bakeTiles(d.clip).catch(() => {}).finally(() => ISL._mapReady()), 100);
   }
@@ -838,9 +844,13 @@
     const hx = (FX.ox - .5) / .42, hy = (FX.oy - .5) / .34, lean = (1100 - FX.p) / 520; // lean: + when closer
     let sky = null;
     if (S.scene === "world") {
-      // the camera itself slides opposite to your head (labels and pins follow, since they use the same camera)
-      const ox = hx * innerWidth * .3, oy = hy * innerHeight * .26;
-      if (Math.abs(ox - world.ox) > .3 || Math.abs(oy - world.oy) > .3) { world.ox = ox; world.oy = oy; world.apply(); }
+      // the eye moves to where your head is, and the map is redrawn from there as a 3D diorama (js/depth.js);
+      // labels and pins follow, since they use the same camera
+      if (DEPTH) DEPTH.head(hx, hy, lean);
+      else {
+        const ox = hx * innerWidth * .3, oy = hy * innerHeight * .26;
+        if (Math.abs(ox - world.ox) > .3 || Math.abs(oy - world.oy) > .3) { world.ox = ox; world.oy = oy; world.apply(); }
+      }
     } else {
       // space: the far sky slides with you more than the near stars, so the planet floats in front of them
       const s = (f) => `translate(${(hx * innerWidth * f).toFixed(1)}px,${(hy * innerHeight * f).toFixed(1)}px) scale(${(1 + lean * f).toFixed(4)})`;
@@ -916,7 +926,8 @@
     FX.on = false; FX.mode = null; cancelAnimationFrame(FX.raf); stopStream();
     document.body.classList.remove("fx");
     FX.lastKey = ""; FX.lastFrame = 0;
-    if (world && (world.ox || world.oy)) { world.ox = world.oy = 0; world.apply(); }
+    if (DEPTH) DEPTH.rest(); // the eye glides back to the middle
+    else if (world && (world.ox || world.oy)) { world.ox = world.oy = 0; world.apply(); }
     ["#space-stage .space-bg", "#par-far", "#par-near"].forEach(s => { const el = $(s); if (el) el.style.transform = ""; });
     FX.ox = FX.oy = FX.tox = FX.toy = .5; FX.p = FX.tp = 1100;
     $("#fx-panel").hidden = true; $("#fx-panel").classList.remove("cam");
@@ -1012,7 +1023,10 @@
     return ISLANDS.reduce((best, k) => d(C.islands[k].rect) < d(C.islands[best].rect) ? k : best, ISLANDS[0]);
   }
   function onCamChange() {
-    if (world && S.scene === "world") { const m = v => ((v % 40) + 40) % 40; seaDots().style.transform = `translate(${m(world.tx + world.ox).toFixed(1)}px,${m(world.ty + world.oy).toFixed(1)}px)`; }
+    if (world && S.scene === "world") {
+      if (DEPTH) DEPTH.cam(); // sea floor, clouds, cliffs and locals at their depths (it also moves the sea dots)
+      else { const m = v => ((v % 40) + 40) % 40; seaDots().style.transform = `translate(${m(world.tx + world.ox).toFixed(1)}px,${m(world.ty + world.oy).toFixed(1)}px)`; }
+    }
     const lv = computeLevel();
     if (lv !== S.level) { S.level = lv; updateChrome(); if (!S.place && !S.routing && !S.transitioning && !S.page) setHash(lv === "system" ? "#/system" : "#/" + lv); }
     scheduleOverlay();
@@ -1260,7 +1274,7 @@
       if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       if (!drag.moved && Math.hypot(dx, dy) < 5) return; drag.moved = true; view.classList.add("grabbing");
       world.stop();
-      world.set({ s: world.s, tx: drag.tx + dx, ty: drag.ty + dy });
+      world.set({ s: world.s, tx: drag.tx + dx / world.om, ty: drag.ty + dy / world.om }); // the map follows the finger exactly, at any depth
     });
     const up = e => {
       if (!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId); view.classList.remove("grabbing");
@@ -1314,7 +1328,7 @@
     $("#tour-next").onclick = () => S.tour >= T.tour.length - 1 ? endTour() : tourGo(S.tour + 1);
     $("#tour-prev").onclick = () => S.tour > 0 && tourGo(S.tour - 1);
     $("#tour-end").onclick = endTour;
-    window.addEventListener("resize", () => { fitS = islandsTarget().s; world.set({ s: world.s, tx: world.tx, ty: world.ty }); space.set(S.scene === "space" && !S.transitioning ? spaceHome() : { s: space.s, tx: space.tx, ty: space.ty }, false); scheduleOverlay(); });
+    window.addEventListener("resize", () => { if (DEPTH) DEPTH.resize(); fitS = islandsTarget().s; world.set({ s: world.s, tx: world.tx, ty: world.ty }); space.set(S.scene === "space" && !S.transitioning ? spaceHome() : { s: space.s, tx: space.tx, ty: space.ty }, false); scheduleOverlay(); });
     window.addEventListener("hashchange", route);
     wireFX();
   }
@@ -1361,6 +1375,10 @@
     fitS = islandsTarget().s;
     space.set(spaceHome(), false);
     world.set(islandsTarget());
+    // the islands as a 3D diorama seen through the screen (js/depth.js). It switches itself off if anything goes wrong.
+    try {
+      if (window.DIS_DEPTH) DEPTH = window.DIS_DEPTH({ world, cfg: C.depth, reduce: REDUCE, isFx: () => FX.on, isActive: () => S.scene === "world" && !S.page && !S.menuOpen && !S.transitioning });
+    } catch (e) { console.warn("Depth: not started, the map stays flat.", e); DEPTH = null; world.om = 1; world.ox = world.oy = 0; world.apply(); }
     buildOverlay(); wireInput(); runFerry(); cookie();
     if (!REDUCE) requestAnimationFrame(spaceLoop);
     buildLogoIsland().catch(e => { console.error("Logo island:", e); ISL._ready(); ISL._baked(); });

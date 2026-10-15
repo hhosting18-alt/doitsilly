@@ -41,6 +41,13 @@ the beach around the islands is traced from the map pixels, which browsers only 
   model host), so leaning left, right, in and out shifts the view like looking through a window. The video never leaves
   the device. No camera or permission refused: the mouse drives the same effect. Exit turns the camera off. Everyone
   who doesn't click it gets the normal site. Needs https or localhost (Vercel and start.bat are both fine).
+- **The 3D diorama** (`js/depth.js`): the islands are drawn like a model in a box seen through the screen. Walls run
+  back from the screen edges, the dotted sea floor sits deeper than the islands, clouds float near the glass, the islands
+  have earthy cliff sides, and the locals stand up off the map. The islands always show a bit of their south cliff face
+  and cast a soft shadow on the water, so they read as solid models even looking straight on; moving your head (View
+  full experience) or the mouse swings the cliffs round. The mouse tilts the view gently; View full experience
+  drives it from your head. Tune or switch it off in `js/config.js` → `depth` (`"on": false`), or add `?flat` to the
+  address to see the flat map. If anything in it fails, it turns itself off and the site carries on flat.
 
 ## Files
 
@@ -51,6 +58,7 @@ the beach around the islands is traced from the map pixels, which browsers only 
 - `js/config.js`: map layout, clickable places (labels, pins, zoom frames), ferry, clouds, form endpoint
 - `js/map-data.js`: map tiles and where each local stands
 - `js/app.js`: the map engine (camera, zoom, routing, panels, tour, menu, loader, solar system, coastline)
+- `js/depth.js`: the 3D diorama look (box walls, depth layers, island cliffs, standing locals)
 - `js/assets.js`: solar-system drawings and the mascot
 - `art/logo.jpg`: the DOITSILLY logo
 - `art/favicon.svg`: browser tab icon

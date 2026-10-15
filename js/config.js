@@ -54,5 +54,14 @@ window.DIS_CONFIG = {
   { "src": "art/clouds/cloud.svg", "x": 7200, "y": 4900, "w": 360, "dx": -200, "dur": 66 },
   { "src": "art/clouds/cloud.svg", "x": 9000, "y": 600, "w": 300, "dx": -180, "dur": 58 }
  ],
- "lottieMinPx": 52
+ "lottieMinPx": 52,
+ /* The islands as a 3D diorama, seen through the screen like a window into a box (js/depth.js). The mouse tilts the
+    view gently; "View full experience" follows your head. on: false (or ?flat in the address) = the flat map, as before.
+    wall: box depth (0.1 = the map sits 10% smaller than the screen), floor: how deep the dotted sea floor is,
+    thick: island thickness in map px, lean: how much the locals stand up, mouse: how far the mouse moves the view (0 = off).
+    The model look: tilt = how much of the islands' south cliff face always shows (0 = only when you move), tiltX = a little
+    of the east face, head = how much your head / the mouse swings the cliffs round, maxDrop = tallest the cliff face gets
+    (fraction of screen height), shadow = darkness of the shadow on the water (0 = none), slices = layers in the cliff. */
+ "depth": { "on": true, "wall": 0.1, "floor": 0.22, "thick": 560, "maxThick": 0.09, "lean": 0.6, "mouse": 0.4,
+   "tilt": 0.42, "tiltX": 0.1, "head": 0.55, "maxDrop": 0.075, "shadow": 0.3, "slices": 8 }
 };
