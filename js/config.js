@@ -57,8 +57,8 @@ window.DIS_CONFIG = {
  "lottieMinPx": 52,
  /* The islands as a 3D diorama, seen through the screen like a window into a box (js/depth.js). The mouse tilts the
     view gently; "View full experience" follows your head. on: false (or ?flat in the address) = the flat map, as before.
-    wall: how far behind the screen the islands sit (0 = right at the screen, full size, popping out), floor: how deep the
-    dotted sea floor is below them,
+    wall: how far behind the screen the islands sit, so they move as you move (0 = pinned at the screen; the island names
+    always float at the screen and hold still in front of them), floor: how deep the dotted sea floor is below them,
     thick: island thickness in map px, lean: how much the locals stand up, mouse: how far the mouse moves the view (0 = off).
     The model look: tilt = how much of the islands' south cliff face always shows (0 = only when you move), tiltX = a little
     of the east face, head = how much your head / the mouse swings the cliffs round, maxDrop = tallest the cliff face gets
@@ -67,7 +67,7 @@ window.DIS_CONFIG = {
     box: true brings back the walls round the edges (the "theater" look); grid: tile lines on those walls.
     cloudLift: how far in front of the screen the clouds float. adapt: if frames get slow, quietly drop the extras to stay
     smooth (false = never). */
- "depth": { "on": true, "wall": 0, "fxWall": 0, "box": false, "grid": false, "floor": 0.22, "fxFloor": 0.4, "cloudLift": 0.05,
+ "depth": { "on": true, "wall": 0.1, "fxWall": 0.2, "box": false, "grid": false, "floor": 0.22, "fxFloor": 0.4, "cloudLift": 0.05,
    "thick": 560, "maxThick": 0.09, "lean": 0.6, "mouse": 0.4,
    "tilt": 0.42, "tiltX": 0.1, "head": 0.55, "maxDrop": 0.075, "shadow": 0.3, "slices": 4, "adapt": true }
 };

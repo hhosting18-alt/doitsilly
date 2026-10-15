@@ -41,13 +41,12 @@ the beach around the islands is traced from the map pixels, which browsers only 
   model host), so leaning left, right, in and out shifts the view like looking through a window. The video never leaves
   the device. No camera or permission refused: the mouse drives the same effect. Exit turns the camera off. Everyone
   who doesn't click it gets the normal site. Needs https or localhost (Vercel and start.bat are both fine).
-- **The 3D look** (`js/depth.js`): like the logo in a "window into a scene" demo, the islands sit right at the screen,
-  full size, and the world falls away behind them. The dotted sea floor is deep below, the islands have earthy cliff
-  sides and cast a shadow on the water, clouds float just in front of the screen, and the locals stand up off the map.
-  When you move, the islands stay put while the sea, shadows and cliffs slide underneath and the clouds drift the other
-  way, so the islands read as solid things floating above the water. View full experience follows your head and drops
-  the sea away even further; the mouse does a gentle version. (`"box": true` and `"wall": 0.1` bring back the old
-  walled-box look.) Tune or switch it off in `js/config.js` → `depth` (`"on": false`), or add `?flat` to the
+- **The 3D look** (`js/depth.js`): like a "window into a scene" demo. The two island names float at the screen, like
+  the logo in those demos, and hold still; the islands sit a little behind the screen and the dotted sea floor deeper
+  still. The islands have earthy cliff sides and cast a shadow on the water, clouds float just in front of the screen,
+  and the locals stand up off the map. When you move, the islands shift behind the names, the sea shifts even more and
+  the clouds drift the other way. View full experience follows your head and pushes everything deeper; the mouse does a
+  gentle version. (`"box": true` brings back walls round the edges.) Tune or switch it off in `js/config.js` → `depth` (`"on": false`), or add `?flat` to the
   address to see the flat map. If anything in it fails, it turns itself off and the site carries on flat.
 
 ## Files

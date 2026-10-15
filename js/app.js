@@ -1021,6 +1021,7 @@
       const b = h("button", { class: `map-label island-label il-${k}`, type: "button" }, `<span>${g.label}</span><small>${g.line}</small>`);
       b.onclick = () => go(`#/${k}`);
       add(b, I.label[0], I.label[1], "islands");
+      OV[OV.length - 1].front = true; // the island names float at the screen; the islands move behind them (js/depth.js)
     }
     C.districts.forEach(d => {
       const p = P[d.id];
@@ -1049,7 +1050,8 @@
         if (S.place && o.show.endsWith("-pin")) vis = false;
       }
       if (!vis) { o.el.hidden = true; continue; }
-      const p = cam.project(o.wx, o.wy);
+      let p = cam.project(o.wx, o.wy);
+      if (o.front && !inSpace && DEPTH) { try { p = DEPTH.front(o.wx, o.wy) || p; } catch (e) {} }
       if (p.x < -200 || p.y < -100 || p.x > vw + 200 || p.y > vh + 100) { o.el.hidden = true; continue; }
       o.el.hidden = false;
       if (o.show === "space-hit") { const d = 300 * cam.s; o.el.style.width = o.el.style.height = d + "px"; }

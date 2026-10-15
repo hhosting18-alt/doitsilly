@@ -247,6 +247,13 @@ window.DIS_DEPTH = (() => {
 
     const api = {
       on: () => !dead,
+      // where a map point appears when looked at straight on: things that float at the screen (the island names) use
+      // this, so they hold still while the islands move behind them, like the logo in a window demo
+      front: (x, y) => {
+        if (dead || !G) return null;
+        const k0 = G.P0 / (G.P0 + G.Da), s = world.s;
+        return { x: (x * s + world.tx) * k0 + G.cx * (1 - k0), y: (y * s + world.ty) * k0 + G.cy * (1 - k0) };
+      },
       cam: safe(cam),
       coast: safe(b => { if (!dead) coast(b); }),
       resize: safe(() => { if (dead) return; geom(); wallKey = ""; sync(); }),
