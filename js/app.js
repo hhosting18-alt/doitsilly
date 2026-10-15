@@ -891,6 +891,7 @@
     try { if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {}
     FX.on = true; FX.frames = 0; FX.base = 0;
     document.body.classList.add("fx");
+    if (DEPTH && DEPTH.fx) DEPTH.fx(true); // the box opens up into a deep room
     $("#par-far").style.transform = ""; $("#par-near").style.transform = "";
     const panel = $("#fx-panel"), note = $("#fx-note");
     panel.hidden = false; $("#fx-title").textContent = T.fx.loading; note.textContent = T.fx.privacy;
@@ -926,6 +927,7 @@
     FX.on = false; FX.mode = null; cancelAnimationFrame(FX.raf); stopStream();
     document.body.classList.remove("fx");
     FX.lastKey = ""; FX.lastFrame = 0;
+    if (DEPTH && DEPTH.fx) DEPTH.fx(false); // back to the normal shallow box
     if (DEPTH) DEPTH.rest(); // the eye glides back to the middle
     else if (world && (world.ox || world.oy)) { world.ox = world.oy = 0; world.apply(); }
     ["#space-stage .space-bg", "#par-far", "#par-near"].forEach(s => { const el = $(s); if (el) el.style.transform = ""; });

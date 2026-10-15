@@ -61,7 +61,9 @@ window.DIS_CONFIG = {
     thick: island thickness in map px, lean: how much the locals stand up, mouse: how far the mouse moves the view (0 = off).
     The model look: tilt = how much of the islands' south cliff face always shows (0 = only when you move), tiltX = a little
     of the east face, head = how much your head / the mouse swings the cliffs round, maxDrop = tallest the cliff face gets
-    (fraction of screen height), shadow = darkness of the shadow on the water (0 = none), slices = layers in the cliff. */
- "depth": { "on": true, "wall": 0.1, "floor": 0.22, "thick": 560, "maxThick": 0.09, "lean": 0.6, "mouse": 0.4,
+    (fraction of screen height), shadow = darkness of the shadow on the water (0 = none), slices = layers in the cliff.
+    fxWall: how deep the box opens up during View full experience (the deep-room, off-axis look; 0.1 = same as normal),
+    grid: tile lines on the box walls. */
+ "depth": { "on": true, "wall": 0.1, "fxWall": 0.26, "grid": true, "floor": 0.22, "thick": 560, "maxThick": 0.09, "lean": 0.6, "mouse": 0.4,
    "tilt": 0.42, "tiltX": 0.1, "head": 0.55, "maxDrop": 0.075, "shadow": 0.3, "slices": 8 }
 };

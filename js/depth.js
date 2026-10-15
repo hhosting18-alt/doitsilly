@@ -16,6 +16,8 @@ window.DIS_DEPTH = (() => {
   const DEF = {
     on: true,
     wall: .1,      // how deep the box is: the map sits this fraction smaller than the screen when you look straight on
+    fxWall: .26,   // ...how deep it opens up to during View full experience (the deep-room look)
+    grid: true,    // tile lines on the box walls, running back into the screen (what makes the depth readable)
     floor: .22,    // how far below the map the dotted sea floor is (fraction of viewing distance)
     clouds: .25,   // clouds float this fraction of the way from the map up to the glass... (0 = on the map, 1 = on the glass)
     thick: 320,    // island thickness in map pixels (the cliff sides)
@@ -42,7 +44,7 @@ window.DIS_DEPTH = (() => {
     const canLean = !!(window.CSS && CSS.supports && CSS.supports("transform", "skewX(calc(clamp(-.5, 0.1 * 2, .5) * 1rad))"));
     let dead = cfg.on === false || flatAsked || !deep || !dots;
 
-    const E = { hx: 0, hy: 0, lean: 0, thx: 0, thy: 0, tl: 0 }; // eye: now and target (-1..1 across the screen)
+    const E = { hx: 0, hy: 0, lean: 0, thx: 0, thy: 0, tl: 0, dm: 0, tdm: 0 }; // eye: now and target (-1..1 across the screen); dm: 0 = normal box, 1 = deep full-experience box
     let G = null, raf = 0, last = 0, box = null, wallKey = "", cliff = [], shade = null;
 
     function geom() {
@@ -57,6 +59,8 @@ window.DIS_DEPTH = (() => {
 
     /* ---- the camera: the map plane's scale + shift for this eye point ---- */
     function sync() {
+      const w = cfg.wall + (Math.max(cfg.wall, cfg.fxWall) - cfg.wall) * clamp(E.dm, 0, 1);
+      G.Da = G.P0 * (1 / (1 - clamp(w, 0, .6)) - 1); G.Dc = G.Da * (1 - clamp(cfg.clouds, 0, 1));
       const e = eye(), kA = e.P / (e.P + G.Da);
       world.om = kA; world.ox = e.x * (1 - kA); world.oy = e.y * (1 - kA);
       world.apply(); // -> onCamChange -> cam()
@@ -113,12 +117,12 @@ window.DIS_DEPTH = (() => {
         <linearGradient id="bx-r" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#1B6BD3"/><stop offset="1" stop-color="#083F8F"/></linearGradient>
         <linearGradient id="bx-b" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#3A92F4"/><stop offset="1" stop-color="#0B55B6"/></linearGradient></defs>
         <polygon class="bx-w" fill="url(#bx-t)"/><polygon class="bx-w" fill="url(#bx-b)"/><polygon class="bx-w" fill="url(#bx-l)"/><polygon class="bx-w" fill="url(#bx-r)"/>
-        <path class="bx-ring"/><path class="bx-seam"/><path class="bx-ao bx-ao1"/><path class="bx-ao bx-ao2"/><path class="bx-back"/>`;
+        <path class="bx-grid"/><path class="bx-ring"/><path class="bx-seam"/><path class="bx-ao bx-ao1"/><path class="bx-ao bx-ao2"/><path class="bx-back"/>`;
       view.appendChild(box);
     }
     function walls(e, kA) {
       if (!box) return;
-      const { W, H } = G, key = [W, H, e.x.toFixed(1), e.y.toFixed(1), e.P.toFixed(1)].join();
+      const { W, H } = G, key = [W, H, e.x.toFixed(1), e.y.toFixed(1), e.P.toFixed(1), G.Da.toFixed(1)].join();
       if (key === wallKey) return; wallKey = key;
       box.setAttribute("viewBox", `0 0 ${W} ${H}`);
       const at = k => [e.x * (1 - k), e.y * (1 - k), e.x * (1 - k) + W * k, e.y * (1 - k) + H * k]; // the screen rect at depth
@@ -129,8 +133,17 @@ window.DIS_DEPTH = (() => {
       pg[2].setAttribute("points", `0,0 ${f(x0)},${f(y0)} ${f(x0)},${f(y1)} 0,${H}`);
       pg[3].setAttribute("points", `${W},0 ${W},${H} ${f(x1)},${f(y1)} ${f(x1)},${f(y0)}`);
       const rect = r => `M${f(r[0])},${f(r[1])}H${f(r[2])}V${f(r[3])}H${f(r[0])}Z`;
-      // dashed guide rings part-way down the walls make the depth readable at a glance
-      box.querySelector(".bx-ring").setAttribute("d", [.34, .67].map(t => rect(at(e.P / (e.P + G.Da * t)))).join(""));
+      // tile lines: rings part-way down the walls, plus lines running from the screen edge back to the map, so the walls
+      // read like a tiled room going back into the screen
+      const rings = cfg.grid ? [1, 2, 3, 4, 5, 6].map(i => i / 7) : [.34, .67];
+      box.querySelector(".bx-ring").setAttribute("d", rings.map(t => rect(at(e.P / (e.P + G.Da * t)))).join(""));
+      let gd = "";
+      if (cfg.grid) {
+        const N = 12, M = 7, bx = u => e.x * (1 - kA) + u * kA, by = v => e.y * (1 - kA) + v * kA;
+        for (let i = 1; i < N; i++) { const u = W * i / N; gd += `M${f(u)},0L${f(bx(u))},${f(y0)}M${f(u)},${H}L${f(bx(u))},${f(y1)}`; }
+        for (let i = 1; i < M; i++) { const v = H * i / M; gd += `M0,${f(v)}L${f(x0)},${f(by(v))}M${W},${f(v)}L${f(x1)},${f(by(v))}`; }
+      }
+      box.querySelector(".bx-grid").setAttribute("d", gd);
       box.querySelector(".bx-seam").setAttribute("d", `M0,0L${f(x0)},${f(y0)}M${W},0L${f(x1)},${f(y0)}M${W},${H}L${f(x1)},${f(y1)}M0,${H}L${f(x0)},${f(y1)}`);
       const back = rect([x0, y0, x1, y1]);
       box.querySelectorAll(".bx-ao,.bx-back").forEach(p => p.setAttribute("d", back));
@@ -172,9 +185,9 @@ window.DIS_DEPTH = (() => {
       raf = 0;
       const dt = last ? Math.min(.1, (now - last) / 1000) : 1 / 60; last = now;
       const k = 1 - Math.exp(-dt * 6);
-      E.hx += (E.thx - E.hx) * k; E.hy += (E.thy - E.hy) * k; E.lean += (E.tl - E.lean) * k;
-      const done = Math.abs(E.thx - E.hx) + Math.abs(E.thy - E.hy) + Math.abs(E.tl - E.lean) < .0015;
-      if (done) { E.hx = E.thx; E.hy = E.thy; E.lean = E.tl; }
+      E.hx += (E.thx - E.hx) * k; E.hy += (E.thy - E.hy) * k; E.lean += (E.tl - E.lean) * k; E.dm += (E.tdm - E.dm) * k;
+      const done = Math.abs(E.thx - E.hx) + Math.abs(E.thy - E.hy) + Math.abs(E.tl - E.lean) + Math.abs(E.tdm - E.dm) < .0015;
+      if (done) { E.hx = E.thx; E.hy = E.thy; E.lean = E.tl; E.dm = E.tdm; }
       sync();
       if (!done) raf = requestAnimationFrame(settle); else last = 0;
     }
@@ -213,9 +226,16 @@ window.DIS_DEPTH = (() => {
           return;
         }
         cancelAnimationFrame(raf); raf = 0; last = 0;
-        const moved = Math.abs(hx - E.hx) + Math.abs(hy - E.hy) + Math.abs(lean - E.lean) > .0008;
-        E.hx = E.thx = hx; E.hy = E.thy = hy; E.lean = E.tl = lean;
+        let dm = E.dm + (E.tdm - E.dm) * .07; if (Math.abs(E.tdm - dm) < .002) dm = E.tdm; // the box deepens over ~half a second
+        const moved = Math.abs(hx - E.hx) + Math.abs(hy - E.hy) + Math.abs(lean - E.lean) + Math.abs(dm - E.dm) > .0008;
+        E.hx = E.thx = hx; E.hy = E.thy = hy; E.lean = E.tl = lean; E.dm = dm;
         if (moved) sync();
+      }),
+      // View full experience on/off: the box opens up into a deep room, and closes back to the normal shallow one
+      fx: safe(on => {
+        if (dead) return;
+        E.tdm = on ? 1 : 0;
+        if (o.isActive() && !raf) raf = requestAnimationFrame(settle);
       }),
       rest: safe(() => {
         if (dead) { if (world.ox || world.oy) { world.ox = world.oy = 0; world.apply(); } return; }
