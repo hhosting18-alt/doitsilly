@@ -15,8 +15,12 @@ window.DIS_DEPTH = (() => {
   const NS = "http://www.w3.org/2000/svg";
   const DEF = {
     on: true,
-    wall: .1,      // how deep the box is: the map sits this fraction smaller than the screen when you look straight on
-    fxWall: .26,   // ...how deep it opens up to during View full experience (the deep-room look)
+    wall: 0,       // how far behind the glass the islands sit (0 = right at the screen, full size, popping out like the logo in
+                   // a window demo; 0.1 = pushed back into a box, with walls)
+    fxWall: 0,     // ...the same during View full experience
+    box: false,    // draw box walls round the edges (the "theater" look). Off: the sea just fills the screen
+    fxFloor: .4,   // during View full experience the sea floor drops away this deep, so the islands float well above it
+    cloudLift: .05,// clouds float this far in front of the screen (fraction of viewing distance): they drift the opposite way
     grid: true,    // tile lines on the box walls, running back into the screen (what makes the depth readable)
     floor: .22,    // how far below the map the dotted sea floor is (fraction of viewing distance)
     clouds: .25,   // clouds float this fraction of the way from the map up to the glass... (0 = on the map, 1 = on the glass)
@@ -78,8 +82,10 @@ window.DIS_DEPTH = (() => {
 
     /* ---- the camera: the map plane's scale + shift for this eye point ---- */
     function sync() {
-      const w = cfg.wall + (Math.max(cfg.wall, cfg.fxWall) - cfg.wall) * clamp(E.dm, 0, 1);
-      G.Da = G.P0 * (1 / (1 - clamp(w, 0, .6)) - 1); G.Dc = G.Da * (1 - clamp(cfg.clouds, 0, 1));
+      const dm = clamp(E.dm, 0, 1), w = cfg.wall + (Math.max(cfg.wall, cfg.fxWall) - cfg.wall) * dm;
+      G.Da = G.P0 * (1 / (1 - clamp(w, 0, .6)) - 1);
+      G.Dc = G.Da * (1 - clamp(cfg.clouds, 0, 1)) - G.P0 * clamp(cfg.cloudLift, 0, .3);
+      G.Df = G.P0 * Math.max(.02, cfg.floor + (Math.max(cfg.floor, cfg.fxFloor) - cfg.floor) * dm);
       const e = eye(), kA = e.P / (e.P + G.Da);
       world.om = kA; world.ox = e.x * (1 - kA); world.oy = e.y * (1 - kA);
       world.apply(); // -> onCamChange -> cam()
@@ -122,7 +128,8 @@ window.DIS_DEPTH = (() => {
         const dx = drop * clamp(cfg.tiltX + E.hx * cfg.head, -.9, .9), dy = drop * clamp(cfg.tilt + E.hy * cfg.head, -.15, .95);
         const put = (u, p, f) => { const t = `matrix(${p.r.toFixed(5)} 0 0 ${p.r.toFixed(5)} ${(p.x + dx * f).toFixed(1)} ${(p.y + dy * f).toFixed(1)})`; if (u._t !== t) { u._t = t; u.setAttribute("transform", t); } };
         cliff.forEach((u, i) => { const f = (n - i) / n; put(u, local(e, G.Da + T * f), f); });
-        if (shade) put(shade, local(e, G.Da + T), 1.45);
+        // the shadow lies on the water a little below the cliffs, so it slides against the islands as you move
+        if (shade) put(shade, local(e, G.Da + T + G.Df * .3), 1.45);
       }
     }
     function legacyDots() { // the flat site's sea dots, exactly as before
@@ -270,7 +277,7 @@ window.DIS_DEPTH = (() => {
 
     if (!dead) {
       try {
-        geom(); buildBox();
+        geom(); if (cfg.box) buildBox();
         document.body.classList.add("d3");
         window.addEventListener("pointermove", safe(mouse), { passive: true });
         document.documentElement.addEventListener("mouseleave", () => { if (!dead && !o.isFx()) aim(0, 0, 0); });

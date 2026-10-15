@@ -41,12 +41,13 @@ the beach around the islands is traced from the map pixels, which browsers only 
   model host), so leaning left, right, in and out shifts the view like looking through a window. The video never leaves
   the device. No camera or permission refused: the mouse drives the same effect. Exit turns the camera off. Everyone
   who doesn't click it gets the normal site. Needs https or localhost (Vercel and start.bat are both fine).
-- **The 3D diorama** (`js/depth.js`): the islands are drawn like a model in a box seen through the screen. Walls run
-  back from the screen edges, the dotted sea floor sits deeper than the islands, clouds float near the glass, the islands
-  have earthy cliff sides, and the locals stand up off the map. The islands always show a bit of their south cliff face
-  and cast a soft shadow on the water, so they read as solid models even looking straight on; moving your head (View
-  full experience) or the mouse swings the cliffs round. The mouse tilts the view gently; View full experience
-  drives it from your head. Tune or switch it off in `js/config.js` → `depth` (`"on": false`), or add `?flat` to the
+- **The 3D look** (`js/depth.js`): like the logo in a "window into a scene" demo, the islands sit right at the screen,
+  full size, and the world falls away behind them. The dotted sea floor is deep below, the islands have earthy cliff
+  sides and cast a shadow on the water, clouds float just in front of the screen, and the locals stand up off the map.
+  When you move, the islands stay put while the sea, shadows and cliffs slide underneath and the clouds drift the other
+  way, so the islands read as solid things floating above the water. View full experience follows your head and drops
+  the sea away even further; the mouse does a gentle version. (`"box": true` and `"wall": 0.1` bring back the old
+  walled-box look.) Tune or switch it off in `js/config.js` → `depth` (`"on": false`), or add `?flat` to the
   address to see the flat map. If anything in it fails, it turns itself off and the site carries on flat.
 
 ## Files
