@@ -604,14 +604,15 @@
     setTimeout(() => bakeTiles(d.clip).catch(() => {}).finally(() => ISL._mapReady()), 100);
   }
   /* Clipping the island art with a live SVG clip-path forces the browser to redraw the whole map through that shape on
-     every frame of a pan or zoom. Instead, each tile is clipped once, in the background, into a new image; after that the
-     live clip is switched off and moving the map is just sliding pictures around. */
+     every frame of a pan or zoom. Instead, each tile is clipped once into a canvas that takes the tile's place; after that
+     the live clip is switched off and moving the map is just sliding pictures around. (Drawn straight onto canvases: no
+     image encoding and decoding round trip, which used to make this take several seconds.) */
   async function bakeTiles(clipD) {
     if (bakeTiles.started || !window.Path2D) return; bakeTiles.started = true;
     let clip; try { clip = new Path2D(clipD); } catch (e) { return; }
-    const idle = () => new Promise(r => window.requestIdleCallback ? requestIdleCallback(r, { timeout: 80 }) : setTimeout(r, 0));
+    const breath = () => new Promise(r => setTimeout(r, 0)); // let the page draw a frame between tiles
     for (const im of $$("#world-stage img.tile")) {
-      await idle();
+      await breath();
       try {
         if (!im.complete || !im.naturalWidth) await (im.decode ? im.decode() : Promise.resolve()).catch(() => {});
         const nw = im.naturalWidth, nh = im.naturalHeight; if (!nw) continue;
@@ -619,12 +620,10 @@
         const cv = document.createElement("canvas"); cv.width = nw; cv.height = nh;
         const g = cv.getContext("2d");
         g.setTransform(sx, 0, 0, sy, -x * sx, -y * sy); g.clip(clip, "evenodd"); g.drawImage(im, x, y, w, hh);
-        const blob = await new Promise(r => cv.toBlob(r, "image/webp", .95)); if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        await new Promise(r => { const n = new Image(); n.onload = n.onerror = r; n.src = url; });
-        im.src = url;
-        await (im.decode ? im.decode() : Promise.resolve()).catch(() => {}); // ready before the next one: no blank tiles
-      } catch (e) { return; } // unsupported or blocked: the live clip stays on, which still looks right
+        cv.className = im.className; cv.setAttribute("aria-hidden", "true"); cv.style.cssText = im.style.cssText;
+        Object.assign(cv.dataset, im.dataset);
+        im.replaceWith(cv);
+      } catch (e) { return; } // unsupported: the live clip stays on, which still looks right
     }
     $("#world-stage").classList.add("baked");
   }
@@ -644,7 +643,7 @@
   ISL.baked = new Promise(r => { ISL._baked = r; });
   // the real map is ready to show: every tile trimmed to the coast, swapped in and decoded (never shown half-done)
   ISL.mapReady = new Promise(r => { ISL._mapReady = r; });
-  const mapReadyOrTimeout = () => Promise.race([ISL.mapReady, sleep(12000)]);
+  const mapReadyOrTimeout = () => Promise.race([ISL.mapReady, sleep(4000)]); // after that the live clip still looks right
   /* The arrival show: logo -> logo island -> the island breaks apart and every district flies back to its real spot ->
      the original two islands. instant = skip the show (arriving zoomed in, e.g. a shared link to a place). */
   ISL.reveal = async (instant) => {
@@ -656,25 +655,25 @@
       st.classList.remove("premorph", "breaking"); st.classList.add("broken"); ISL.morphed = true; ISL.revealing = false; updateChrome(); scheduleOverlay();
       // the show is over: free the temporary pieces, the logo-island coast and the logo overlay
       setTimeout(() => {
-        ISL.chunks.forEach(c => { try { URL.revokeObjectURL(c.el.src); } catch (e) {} c.el.remove(); }); ISL.chunks = [];
+        ISL.chunks.forEach(c => c.el.remove()); ISL.chunks = [];
         const co = $("#coast"); if (co) co.innerHTML = "";
         const sk = $("#logo-skin"); if (sk) sk.remove();
       }, 1200);
     };
     if (instant || REDUCE || !ISL.chunks.length) { await mapReadyOrTimeout(); return finish(); }
-    await sleep(450);
+    await sleep(200);
     st.classList.remove("premorph");                 // 1. the logo fades into the logo island
-    await Promise.all([sleep(1700 + 1500), mapReadyOrTimeout()]); // 2. ...which holds until the real map is fully ready
+    await Promise.all([sleep(1500), mapReadyOrTimeout()]); // 2. ...which holds briefly, until the real map is ready
     st.classList.add("breaking");                     // 3. its coast dissolves and the districts fly home
     ISL.chunks.forEach((c, i) => {
-      const delay = (i % 4) * .07 + Math.floor(i / 4) * .09;
+      const delay = (i % 4) * .04 + Math.floor(i / 4) * .05;
       c.el.style.willChange = "transform";
-      c.el.style.transition = `transform 1.7s cubic-bezier(.65,0,.25,1) ${delay.toFixed(2)}s`;
+      c.el.style.transition = `transform 1.1s cubic-bezier(.65,0,.25,1) ${delay.toFixed(2)}s`;
       c.el.style.transform = c.home;
     });
-    await sleep(2050);
+    await sleep(1300);
     st.classList.add("broken");                       // 4. the real islands take over: coastline, locals, ferry, labels
-    await sleep(700);
+    await sleep(400);
     ISL.chunks.forEach(c => { c.el.style.willChange = ""; });
     finish();
   };
@@ -784,11 +783,10 @@
 
     // 4. bake each district from the full-quality art, clipped to its own border and to the logo outline
     const R = L.bakeScale, all = src.concat(srcFg), host = $("#chunks");
-    const idle = () => new Promise(r => window.requestIdleCallback ? requestIdleCallback(r, { timeout: 400 }) : setTimeout(r, 30));
     try {
       for (const row of L.grid) for (const n of row) {
         const dd = DIST[names.indexOf(n)]; if (!dd || !dd.s) continue;
-        await idle();
+        await breath();
         const [bx, by, bw, bh] = dd.box;
         const x0 = Math.max(IX, dd.dst[0] - bw * dd.s / 2), y0 = Math.max(IY, dd.dst[1] - bh * dd.s / 2);
         const x1 = Math.min(IX + IW, dd.dst[0] + bw * dd.s / 2), y1 = Math.min(IY + IH, dd.dst[1] + bh * dd.s / 2);
@@ -804,12 +802,10 @@
           if (tx > bx + bw || tx + tw < bx || ty > by + bh || ty + th < by || !im.naturalWidth) continue;
           g2.drawImage(im, tx, ty, tw + 1, th + 1);
         }
-        const blob = await new Promise(r => c2.toBlob(r, "image/webp", .9));
-        if (!blob) throw new Error("bake refused");
-        const img = h("img", { class: "chunk", alt: "", draggable: "false", decoding: "async" });
+        // the piece is shown as the canvas itself: no encoding it into an image file and decoding it back
+        const img = c2;
+        img.className = "chunk"; img.setAttribute("aria-hidden", "true");
         img.style.cssText = `left:${x0.toFixed(0)}px;top:${y0.toFixed(0)}px;width:${(x1 - x0).toFixed(0)}px;height:${(y1 - y0).toFixed(0)}px`;
-        img.src = URL.createObjectURL(blob);
-        await (img.decode ? img.decode() : Promise.resolve()).catch(() => {});
         host.appendChild(img);
         // where this piece lives on the real map: the same art, back at its original place and size
         const hx0 = dd.src[0] + (x0 - dd.dst[0]) / dd.s, hy0 = dd.src[1] + (y0 - dd.dst[1]) / dd.s;
